@@ -137,11 +137,16 @@ def nacti_vsechna_data():
             hrac = klic.replace("celkove_", "")
             if hrac in celkove_tipy:
                 celkove_tipy[hrac] = {
-                    "mistr": str(row.get("Hodnota1", "")),
-                    "semifinale": [str(row.get("Hodnota2", "")), str(row.get("Hodnota3", "")), str(row.get("Hodnota4", "")), str(row.get("Hodnota5", ""))],
-                    "cesko": str(row.get("Hodnota6", "Základní skupina")),
-                    "mvp": str(row.get("Hodnota7", "")),
-                    "goly": int(row["Hodnota8"]) if row.get("Hodnota8") else 0
+                    "mistr": str(row.get("Hodnota1", "") or ""),
+                    "semifinale": [
+                         Mortimer := str(row.get("Hodnota2", "") or ""),
+                        str(row.get("Hodnota3", "") or ""),
+                        str(row.get("Hodnota4", "") or ""),
+                        str(row.get("Hodnota5", "") or "")
+                    ],
+                    "cesko": str(row.get("Hodnota6", "Základní skupina") or "Základní skupina"),
+                    "mvp": str(row.get("Hodnota7", "") or ""),
+                    "goly": int(row["Hodnota8"]) if (row.get("Hodnota8") and str(row["Hodnota8"]).isdigit()) else 0
                 }
         elif klic.startswith("stats_"):
             hrac_jmeno = klic.replace("stats_", "")

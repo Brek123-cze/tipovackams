@@ -621,13 +621,11 @@ elif volba == "Moje tipy (Zápasy) 📝":
                     st.rerun()
             
 # --- 3. ZÁLOŽKA: CELOTURNAJOVÉ TIPY ---
-# Načteme stav zámku od správce
-je_zamknuto_spravcem = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)
-
-
-
 elif volba == "Celoturnajové tipy 🏆":
-   # Pokud je uživatel Správce, zámek ignorujeme, aby mohl data měnit
+    # Načteme stav zámku od správce
+    je_zamknuto_spravcem = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)   
+
+    # Pokud je uživatel Správce, zámek ignorujeme, aby mohl data měnit
     if current_user == "Správce 👑":
         dlouhodobe_disabled = False
     else:

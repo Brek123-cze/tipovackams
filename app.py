@@ -326,6 +326,7 @@ sorted_skupina_a, sorted_skupina_b, celkove_goly_ms = generuj_tabulky_ms(data)
 df_statistiky = ziskej_dataframe_statistik(data)
 nejlepsi_cesi_output = urci_nejlepsi_hrace(df_statistiky)
 
+# Výpočet celkového pořadí hráčů
 statistiky_hracu = {h: {"body": 0, "presne": 0} for h in HRACI}
 for hrac in HRACI:
     for z in ZAPASY:
@@ -335,7 +336,8 @@ for hrac in HRACI:
             r = data["vysledky"][z_id]
             zolik = data["zolici"][hrac].get(z_id, False)
             if t.get("d") is not None and r.get("d") is not None:
-                b, _ = spocitej_body_hrace(tip["d"], tip["h"], res["d"], res["h"], zolik, res.get("pp_sn", False))
+                # ✨ TADY JE TA OPRAVA (používáme t a r, plus přidáno r.get)
+                b, p = spocitej_body_hrace(t["d"], t["h"], r["d"], r["h"], zolik, r.get("pp_sn", False))
                 statistiky_hracu[hrac]["body"] += b
                 if p: statistiky_hracu[hrac]["presne"] += 1
 

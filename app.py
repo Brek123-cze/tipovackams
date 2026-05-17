@@ -136,18 +136,29 @@ def nacti_vsechna_data():
         elif klic.startswith("celkove_"):
             hrac = klic.replace("celkove_", "")
             if hrac in celkove_tipy:
+                # Načteme bezpečně všechny hodnoty, pokud chybí, dáme prázdný řetězec
+                h1 = str(row.get("Hodnota1") if row.get("Hodnota1") is not None else "")
+                h2 = str(row.get("Hodnota2") if row.get("Hodnota2") is not None else "")
+                h3 = str(row.get("Hodnota3") if row.get("Hodnota3") is not None else "")
+                h4 = str(row.get("Hodnota4") if row.get("Hodnota4") is not None else "")
+                h5 = str(row.get("Hodnota5") if row.get("Hodnota5") is not None else "")
+                h6 = str(row.get("Hodnota6") if row.get("Hodnota6") is not None else "Základní skupina")
+                h7 = str(row.get("Hodnota7") if row.get("Hodnota7") is not None else "")
+                h8 = row.get("Hodnota8")
+                
+                try:
+                    goly_val = int(h8) if h8 and str(h8).strip().isdigit() else 0
+                except:
+                    goly_val = 0
+
                 celkove_tipy[hrac] = {
-                    "mistr": str(row.get("Hodnota1", "") or ""),
-                    "semifinale": [
-                         Mortimer := str(row.get("Hodnota2", "") or ""),
-                        str(row.get("Hodnota3", "") or ""),
-                        str(row.get("Hodnota4", "") or ""),
-                        str(row.get("Hodnota5", "") or "")
-                    ],
-                    "cesko": str(row.get("Hodnota6", "Základní skupina") or "Základní skupina"),
-                    "mvp": str(row.get("Hodnota7", "") or ""),
-                    "goly": int(row["Hodnota8"]) if (row.get("Hodnota8") and str(row["Hodnota8"]).isdigit()) else 0
+                    "mistr": h1,
+                    "semifinale": [h2, h3, h4, h5],
+                    "cesko": h6 if h6 in ["Základní skupina", "Čtvrtfinále", "Semifinále", "Bronz", "Stříbro", "Zlato 🥇"] else "Základní skupina",
+                    "mvp": h7,
+                    "goly": goly_val
                 }
+                
         elif klic.startswith("stats_"):
             hrac_jmeno = klic.replace("stats_", "")
             if hrac_jmeno in kanadske_bodovani:

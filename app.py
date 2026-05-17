@@ -128,7 +128,17 @@ def nacti_vsechna_data():
     vysledky = {}
     tipy = {h: {} for h in HRACI}
     zolici = {h: {} for h in HRACI}
-    celkove_tipy = {h: {"mistr": "", "semifinale": ["", "", "", ""], "cesko": "Základní skupina", "mvp": "", "goly": 0} for h in HRACI}
+    # ✨ OPRAVA: Výchozí struktura upravená na klíče "hodnota1" až "hodnota5"
+    celkove_tipy = {h: {
+        "hodnota1": "", # Celkový vítěz
+        "hodnota2": "", # semifinalista1
+        "hodnota3": "", # semifinalista1
+        "hodnota4": "", # semifinalista1
+        "hodnota5": "", # semifinalista1
+        "hodnota6": "", # Umístění českého týmu
+        "hodnota7": "", # MVP
+        "hodnota8": ""  # Počet gólů
+    } for h in HRACI}
     kanadske_bodovani = {hrac: {col: 0 for col in SLOUPCE_MATICE} for hrac in SOUPISKA_CR}
 
     raw_json = fetch_data_from_api(URL_API)

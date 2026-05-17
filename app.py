@@ -222,32 +222,34 @@ def uloz_do_google_sheets(aktualni_data):
 data = nacti_vsechna_data()
 
 # --- LOGIKA BODOVÁNÍ PRO HRÁČE ---
-def spocitej_body_hrace(tip_d, tip_h, real_d, real_h, je_zolik=False):
-    if tip_d is None or tip_h is None or real_d is None or real_h is None:
-        return 0, False
-    if tip_d == real_d and tip_h == real_h:
-        body = 10
-        presny = True
+def spocitej_body_hrace(tip_d, tip_h, real_d, real_h, zolik=False, real_pp_sn=False):
+    # Pokud zápas skončil PP/SN, pro účely tipu uděláme z reálného skóre remízu
+    if real_pp_sn:
+        min_goly = min(real_d, real_h)
+        real_d_efektivni = min_goly
+        real_h_efektivni = min_goly
     else:
-        presny = False
-        vitez_tip = "D" if tip_d > tip_h else ("H" if tip_h > tip_d else "R")
-        vitez_real = "D" if real_d > real_h else ("H" if real_h > real_d else "R")
-        rozdil_tip = tip_d - tip_h
-        rozdil_real = real_d - real_h
-        goly_tip = tip_d + tip_h
-        goly_real = real_d + real_h
-        
-        if (vitez_tip == vitez_real and rozdil_tip == rozdil_real) or (vitez_tip == vitez_real and goly_tip == goly_real) or (vitez_real == "R" and vitez_tip == "R"):
-            body = 6
-        elif vitez_tip == vitez_real:
-            body = 4
-        elif goly_tip == goly_real:
-            body = 2
-        else:
-            body = 0
-    if je_zolik:
-        body = body * 2 if body > 0 else -2
-    return body, presny
+        real_d_efektivni = real_d
+        real_h_efektivni = real_h
+
+    body = 0
+    rozdil_real = real_d_efektivni - real_h_efektivni
+    rozdil_tip = tip_d - tip_h
+
+    # 1. Přesný výsledek (po úpravě na remízu to u PP/SN zápasů skočí sem, pokud hráč tipoval správnou remízu)
+    if real_d_efektivni == tip_d and real_h_efektivni == tip_h:
+        body = 3
+    # 2. Správný rozdíl skóre (nebo jakákoliv jiná remíza)
+    elif rozdil_real == rozdil_tip:
+        body = 2
+    # 3. Správný vítěz
+    elif (rozdil_real > 0 and rozdil_tip > 0) or (rozdil_real < 0 and rozdil_tip < 0):
+        body = 1
+
+    if zolik:
+        body *= 2
+
+    return body, ""
 
 # --- DYNAMICKÝ VÝPOČET TABULEK SKUPIN MS ---
 def generuj_tabulky_ms(data_turnaje):
@@ -333,7 +335,7 @@ for hrac in HRACI:
             r = data["vysledky"][z_id]
             zolik = data["zolici"][hrac].get(z_id, False)
             if t.get("d") is not None and r.get("d") is not None:
-                b, p = spocitej_body_hrace(t["d"], t["h"], r["d"], r["h"], zolik)
+                b, _ = spocitej_body_hrace(tip["d"], tip["h"], res["d"], res["h"], zolik, res.get("pp_sn", False))
                 statistiky_hracu[hrac]["body"] += b
                 if p: statistiky_hracu[hrac]["presne"] += 1
 
@@ -401,7 +403,7 @@ if volba == "Hlavní přehled":
                     zolik = data["zolici"][vybrany_hrac].get(z_id, False)
                     
                     if res and tip and tip["d"] is not None and tip["h"] is not None:
-                        b, _ = spocitej_body_hrace(tip["d"], tip["h"], res["d"], res["h"], zolik)
+                        b, _ = spocitej_body_hrace(tip["d"], tip["h"], res["d"], res["h"], zolik, bool(res.get("pp_sn", False)))
                         zapas_body[int(z_id)] = b
                     else:
                         zapas_body[int(z_id)] = 0

@@ -94,10 +94,12 @@ for z in ZAPASY:
     if z["den"] not in DNY: DNY.append(z["den"])
 
 # --- VYSOKORYCHLOSTNÍ STAHOVÁNÍ DAT PŘES API (Cache na 5 minut) ---
-@st.cache_data(ttl=300)
+# --- VYSOKORYCHLOSTNÍ STAHOVÁNÍ DAT PŘES API (ODSTRANĚNA CACHE PROTI PŘEPISOVÁNÍ) ---
 def fetch_data_from_api(url):
     try:
-        r = requests.get(url, timeout=10)
+        # Přidáváme náhodný parametr na konec URL, aby prohlížeč ani server nikdy nekesovali stará data
+        import random
+        r = requests.get(f"{url}?nocache={random.randint(1, 100000)}", timeout=10)
         if r.status_code == 200:
             return r.json()
     except:
@@ -119,24 +121,32 @@ def nacti_vsechna_data():
         
         if klic.startswith("vysledky_"):
             z_id = klic.replace("vysledky_", "")
-            vysledky[z_id] = {"d": int(row["Hodnota1"]), "h": int(row["Hodnota2"]), "pp_sn": bool(int(row["Hodnota3"]))}
+            try:
+                vysledky[z_id] = {"d": int(row.get("Hodnota1", 0)), "h": int(row.get("Hodnota2", 0)), "pp_sn": bool(int(row.get("Hodnota3", 0)))}
+            except:
+                pass
             
         elif klic.startswith("tip_") and "_z_" in klic:
             casti = klic.split("_")
             hrac, z_id = casti[1], casti[3]
             if hrac in tipy:
-                tipy[hrac][z_id] = {"d": int(row["Hodnota1"]), "h": int(row["Hodnota2"])}
+                try:
+                    tipy[hrac][z_id] = {"d": int(row.get("Hodnota1", 0)), "h": int(row.get("Hodnota2", 0))}
+                except:
+                    pass
                 
         elif klic.startswith("zolik_"):
             casti = klic.split("_")
             hrac, z_id = casti[1], casti[3]
             if hrac in zolici:
-                zolici[hrac][z_id] = bool(int(row["Hodnota1"]))
+                try:
+                    zolici[hrac][z_id] = bool(int(row.get("Hodnota1", 0)))
+                except:
+                    pass
                 
         elif klic.startswith("celkove_"):
             hrac = klic.replace("celkove_", "")
             if hrac in celkove_tipy:
-                # Načteme bezpečně všechny hodnoty, pokud chybí, dáme prázdný řetězec
                 h1 = str(row.get("Hodnota1") if row.get("Hodnota1") is not None else "")
                 h2 = str(row.get("Hodnota2") if row.get("Hodnota2") is not None else "")
                 h3 = str(row.get("Hodnota3") if row.get("Hodnota3") is not None else "")
@@ -163,57 +173,49 @@ def nacti_vsechna_data():
             hrac_jmeno = klic.replace("stats_", "")
             if hrac_jmeno in kanadske_bodovani:
                 for col in SLOUPCE_MATICE:
-                    kanadske_bodovani[hrac_jmeno][col] = int(row.get(col, 0) if (col in row and row[col] != "") else 0)
+                    if col in row and row[col] != "":
+                        try:
+                            kanadske_bodovani[hrac_jmeno][col] = int(float(row[col]))
+                        except:
+                            kanadske_bodovani[hrac_jmeno][col] = 0
 
     return {"vysledky": vysledky, "tipy": tipy, "zolici": zolici, "celkove_tipy": celkove_tipy, "kanadske_bodovani": kanadske_bodovani}
 
 def uloz_do_google_sheets(aktualni_data):
     rows = []
     
-    # 1. Ukládání reálných výsledků zápasů
+    # Kód pro zápasy, tipy a celkové zůstává stejný, ale zajistíme posílání střelců
     for k, v in aktualni_data["vysledky"].items():
-        rows.append({"Klíč": f"vysledky_{k}", "Hodnota1": v["d"], "Hodnota2": v["h"], "Hodnota3": int(v["pp_sn"])})
+        rows.append({"Klíč": f"vysledky_{k}", "Hodnota1": int(v["d"]), "Hodnota2": int(v["h"]), "Hodnota3": int(v["pp_sn"])})
         
-    # 2. Ukládání tipů hráčů a žolíků
     for hrac in HRACI:
         for z_id, v in aktualni_data["tipy"][hrac].items():
-            rows.append({"Klíč": f"tip_{hrac}_z_{z_id}", "Hodnota1": v["d"], "Hodnota2": v["h"]})
+            rows.append({"Klíč": f"tip_{hrac}_z_{z_id}", "Hodnota1": int(v["d"]), "Hodnota2": int(v["h"])})
         for z_id, v in aktualni_data["zolici"][hrac].items():
             rows.append({"Klíč": f"zolik_{hrac}_z_{z_id}", "Hodnota1": int(v)})
             
-        # ✨ OPRAVA CELOTURNAJOVÝCH TIPŮ: Tady se dříve ukládaly jen první dvě hodnoty!
         ct = aktualni_data["celkove_tipy"][hrac]
         semifinale_list = ct.get("semifinale", ["", "", "", ""])
-        # Zajistíme, aby pole mělo vždy alespoň 4 prvky
-        while len(semifinale_list) < 4:
-            semifinale_list.append("")
+        while len(semifinale_list) < 4: semifinale_list.append("")
             
         rows.append({
             "Klíč": f"celkove_{hrac}", 
             "Hodnota1": ct.get("mistr", ""), 
-            "Hodnota2": semifinale_list[0], 
-            "Hodnota3": semifinale_list[1], 
-            "Hodnota4": semifinale_list[2], 
-            "Hodnota5": semifinale_list[3], 
-            "Hodnota6": ct.get("cesko", "Základní skupina"),
-            "Hodnota7": ct.get("mvp", ""), 
+            "Hodnota2": semifinale_list[0], "Hodnota3": semifinale_list[1], 
+            "Hodnota4": semifinale_list[2], "Hodnota5": semifinale_list[3], 
+            "Hodnota6": ct.get("cesko", "Základní skupina"), "Hodnota7": ct.get("mvp", ""), 
             "Hodnota8": int(ct.get("goly", 0)) if ct.get("goly") else 0
         })
         
-    # 3. ✨ OPRAVA MATICE STŘELCŮ (Kanadské bodování): 
-    # Aby Apps Script tabulky správně pobral všechny sloupce zápasů, musíme mu je poslat přesně pojmenované.
     for hrac in SOUPISKA_CR:
         r = {"Klíč": f"stats_{hrac}"}
-        # Přidáme do řádku všechny dynamické sloupce pro góly a asistence
         for col in SLOUPCE_MATICE:
-            hodnota = aktualni_data["kanadske_bodovani"].get(hrac, {}).get(col, 0)
-            r[col] = int(hodnota) if hodnota else 0
+            val = aktualni_data["kanadske_bodovani"].get(hrac, {}).get(col, 0)
+            r[col] = int(val) if val else 0
         rows.append(r)
         
     try:
-        # Bleskové odeslání přes POST na Google Web App
         requests.post(URL_API, json=rows, timeout=15)
-        st.cache_data.clear() # Okamžitě smaže lokální cache, aby se změna projevila všem
     except:
         st.error("Nepodařilo se navázat spojení s Google Diskem. Zkus to za chvíli.")
         

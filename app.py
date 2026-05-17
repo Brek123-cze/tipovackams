@@ -42,7 +42,7 @@ SOUPISKA_CR = [
     "Sedlák Lukáš", "Ščotka Jan", "Ticháček Jiří", "Tomášek David", "Voženílek Daniel"
 ]
 
-ZAPASY_TYPY = ["Švy - ČR", "Nor - ČR", "ČR - Dán", "ČR - Maď", "Zápas 5", "Zápas 6", "Zápas 7", "Čtvrtfinále", "Semifinále", "Finále / o 3. m."]
+ZAPASY_TYPY = ["Dán - ČR", "Slo - ČR", "Švé - ČR", "ČR - Itá", "Svk - ČR", "Nor - ČR", "ČR - Kan", "Čtvrtfinále", "Semifinále", "Finále / o 3. m."]
 
 SLOUPCE_MATICE = []
 for z in ZAPASY_TYPY:

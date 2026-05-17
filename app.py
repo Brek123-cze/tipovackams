@@ -624,13 +624,15 @@ elif volba == "Moje tipy (Zápasy) 📝":
 # Načteme stav zámku od správce
 je_zamknuto_spravcem = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)
 
-# Pokud je uživatel Správce, zámek ignorujeme, aby mohl data měnit
-if current_user == "Správce 👑":
-    dlouhodobe_disabled = False
-else:
-    dlouhodobe_disabled = je_zamknuto_spravcem
+
 
 elif volba == "Celoturnajové tipy 🏆":
+   # Pokud je uživatel Správce, zámek ignorujeme, aby mohl data měnit
+    if current_user == "Správce 👑":
+        dlouhodobe_disabled = False
+    else:
+        dlouhodobe_disabled = je_zamknuto_spravcem
+      
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
         st.title("🏆 Celoturnajové bonusové tipy")

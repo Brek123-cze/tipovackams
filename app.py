@@ -3,6 +3,7 @@ import pandas as pd
 import time
 import requests
 import json
+from datetime import datetime
 
 st.set_page_config(page_title="MS v hokeji - Super Tipovačka", page_icon="🏒", layout="wide")
 
@@ -524,18 +525,45 @@ elif volba == "Moje tipy (Zápasy) 📝":
                 st.write(f"**{z['datum']} | {z['domaci']} vs. {z['hoste']}**")
                 stary_d = data["tipy"][current_user].get(z_id, {}).get("d", 0)
                 stary_h = data["tipy"][current_user].get(z_id, {}).get("h", 0)
-                
-                c1, c2, c3 = st.columns([1, 1, 2])
-                tip_d = c1.number_input(f"Skóre {z['domaci']}", min_value=0, value=int(stary_d), key=f"d_{z_id}", disabled=zapas_odehran)
-                tip_h = c2.number_input(f"Skóre {z['hoste']}", min_value=0, value=int(stary_h), key=f"h_{z_id}", disabled=zapas_odehran)
-                
-                je_z = (aktivni_zolik_dnes == z_id)
-                zolik = c3.checkbox("💥 Žolík dne", value=je_z, key=f"z_{z_id}", disabled=zapas_odehran)
-                
-                docasne_tipy[z_id] = {"d": tip_d, "h": tip_h}
-                docasni_zolici[z_id] = zolik
-                st.write("---")
 
+                # --- KONTROLA ČASU ZAHÁJENÍ ZÁPASU ---
+        # Načteme aktuální čas
+        aktualni_cas = datetime.now()
+        
+        # Převedeme textový čas zápasu (např. "2026-05-15 16:20") na formát, kterému Python rozumí
+        # POZNÁMKA: Formát "%Y-%m-%d %H:%M" uprav podle toho, jak máš zapsané datum v seznamu ZAPASY!
+        try:
+            cas_zapasu = datetime.strptime(z["datum"], "%Y-%m-%d %H:%M")
+            # Pokud je aktuální čas větší než čas zápasu, zápas je uzamčen
+            zapas_uzamcen = aktualni_cas > cas_zapasu
+        except:
+            # Pokud by se nepodařilo čas přečíst, pro jistotu nezamykáme
+            zapas_uzamcen = False
+            
+# Pokud jsi zápas už označil jako vyhodnocený v adminu, zamkneme ho taky
+        if data["vysledky"].get(str(z["id"]), {}).get("vyhodnoceno", False):
+            zapas_uzamcen = True
+                
+        # Spojíme důvody pro uzamčení: zápas je uzamčen buď časem, nebo ručně vyhodnocením, nebo proměnnou zapas_odehran
+        je_zamknuto = bool(zapas_uzamcen or ( 'zapas_odehran' in locals() and zapas_odehran ))
+
+        # Vykreslení sloupců pro zadávání tipů (nyní správně zarovnáno venku pod podmínkou)
+        c1, c2, c3 = st.columns([1, 1, 2])
+        tip_d = c1.number_input(f"Skóre {z['domaci']}", min_value=0, value=int(stary_d), key=f"d_{z_id}", disabled=je_zamknuto)
+        tip_h = c2.number_input(f"Skóre {z['hoste']}", min_value=0, value=int(stary_h), key=f"h_{z_id}", disabled=je_zamknuto)
+        
+        je_z = (aktivni_zolik_dnes == z_id)
+        zolik = c3.checkbox("💥 Žolík dne", value=je_z, key=f"z_{z_id}", disabled=je_zamknuto)
+        
+        docasne_tipy[z_id] = {"d": tip_d, "h": tip_h}
+        docasni_zolici[z_id] = zolik
+        
+        # Pokud je zápas uzamčen, vypíšeme varovný text pod políčka
+        if je_zamknuto:
+            st.caption("🔒 Tento zápas již byl zahájen nebo vyhodnocen, tipy jsou uzamčeny.")
+            
+        st.write("---")
+            
             ulozit_button = st.form_submit_button("Uložit zápis zápasů do tabulky 💾")
 
         if ulozit_button:

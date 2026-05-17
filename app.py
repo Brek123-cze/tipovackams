@@ -543,16 +543,26 @@ elif volba == "Moje tipy (Zápasy) 📝":
                 stary_d = data["tipy"][current_user].get(z_id, {}).get("d", 0)
                 stary_h = data["tipy"][current_user].get(z_id, {}).get("h", 0)
 
-                # --- KONTROLA ČASU ZAHÁJENÍ ZÁPASU (16 mezer) ---
+               # --- KONTROLA ČASU ZAHÁJENÍ ZÁPASU (16 mezer) ---
                 aktualni_cas = datetime.now()
+                dnesni_datum_str = aktualni_cas.strftime("%d.%m.") # Získá dnešní den a měsíc, např. "17.05."
                 
+                zapas_uzamcen = False
                 try:
-                    # Předpokládáme formát např. "16:20". Rok, měsíc a den se doplní podle dnešního data turnaje,
-                    # případně pokud v z["datum"] máš kompletní text, zkontroluj formát.
-                    # Pro bezpečné porovnání času během dnešních zápasů:
-                    cas_zapasu_obj = datetime.strptime(z["datum"], "%H:%M")
-                    cas_zapasu = aktualni_cas.replace(hour=cas_zapasu_obj.hour, minute=cas_zapasu_obj.minute, second=0, microsecond=0)
-                    zapas_uzamcen = aktualni_cas > cas_zapasu
+                    # 1. Pokud je den zápasu až v budoucnu, zápas NIKDY nezamykáme
+                    # Předpokládáme, že v z["den"] nebo z["datum"] je informace o dni, nebo porovnáme textově vybraný den.
+                    # Nejbezpečnější je podívat se, zda zápas patří do dnešního dne:
+                    if vybrany_den == dnesni_datum_str:
+                        # Pokud je to DNES, zkontrolujeme čas (hodiny a minuty)
+                        cas_zapasu_obj = datetime.strptime(z["datum"], "%H:%M")
+                        cas_zapasu = aktualni_cas.replace(hour=cas_zapasu_obj.hour, minute=cas_zapasu_obj.minute, second=0, microsecond=0)
+                        zapas_uzamcen = aktualni_cas > cas_zapasu
+                    
+                    # 2. Pokud se vybraný den už hrál v minulých dnech, zamkneme ho natvrdo celý
+                    # (Tohle ošetří situaci, kdy se kluci vrátí v kalendáři zpět, aby nemohli měnit staré tipy)
+                    elif vybrany_den < dnesni_datum_str:
+                        zapas_uzamcen = True
+                        
                 except:
                     zapas_uzamcen = False
                     

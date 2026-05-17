@@ -735,7 +735,7 @@ elif volba == "Tipy ostatních 👀":
             if data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False):
                 st.caption("🔒 Dlouhodobé tipy byly správcem uzamčeny. Už je nelze měnit.")
 
-# --- 5. ADMIN ZÁLOŽKA: ZADÁVÁNÍ VÝSLEDKŮ ---
+# --- 5. ADMIN ZÁLOŽKA: ZADÁVÁNÍ VÝSLEDKŮ A SPRÁVA WEBŮ ---
 elif volba == "Zadávání výsledků" and current_user == "admin":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
@@ -766,7 +766,7 @@ elif volba == "Zadávání výsledků" and current_user == "admin":
             admin_ulozit_button = st.form_submit_button("Uložit zápasy a přepočítat celou aplikaci 🔄")
             
         if admin_ulozit_button:
-            with st.spinner("Ukládám výsledky a přepočítávám body..."):
+            with st.spinner("Uklám výsledky a přepočítávám body..."):
                 for z_id, v in docasne_vysledky.items():
                     if v["aktivni"]:
                         data["vysledky"][z_id] = {"d": v["d"], "h": v["h"], "pp_sn": v["pp_sn"]}
@@ -778,23 +778,25 @@ elif volba == "Zadávání výsledků" and current_user == "admin":
                 time.sleep(0.5)
                 st.rerun()
 
-# --- ADMIN SEKCE: ZAMKNUTÍ DLOUHODOBÝCH TIPŮ ---
-if volba == "Správce 👑" and heslo_spravne:
-    st.write("### 🔒 Správa uzamčení dlouhodobých tipů")
-    
-    # Načteme aktuální stav z dat, pokud neexistuje, výchozí je False (odemčeno)
-    aktualni_zamek = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)
-    
-    zamknout_dl_tipy = st.checkbox("Uzamknout dlouhodobé tipy pro všechny hráče", value=aktualni_zamek)
-    
-    if st.button("Uložit nastavení zámku 💾"):
-        if "nastaveni" not in data:
-            data["nastaveni"] = {}
-        data["nastaveni"]["dlouhodobe_zamknuto"] = zamknout_dl_tipy
-        uloz_do_google_sheets(data)
-        st.success("Nastavení zámku bylo úspěšně uloženo!")
-        time.sleep(0.5)
-        st.rerun()
+        # ✨ SPOJENÍ: Sekce pro zamykání dlouhodobých tipů vložená přímo sem pod zápasy
+        st.write("## 🔒 Správa uzamčení dlouhodobých tipů")
+        
+        # Načteme aktuální stav z dat, pokud neexistuje, výchozí je False (odemčeno)
+        aktualni_zamek = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)
+        
+        # Aby se nastavení zámku nepletlo do formuláře zápasů, uděláme pro něj miniformulář
+        with st.form("admin_zamek_form"):
+            zamknout_dl_tipy = st.checkbox("Uzamknout dlouhodobé tipy pro všechny hráče", value=aktualni_zamek)
+            tlacitko_zamku = st.form_submit_button("Uložit nastavení zámku 💾")
+            
+        if tlacitko_zamku:
+            if "nastaveni" not in data:
+                data["nastaveni"] = {}
+            data["nastaveni"]["dlouhodobe_zamknuto"] = zamknout_dl_tipy
+            uloz_do_google_sheets(data)
+            st.success("Nastavení zámku bylo úspěšně uloženo!")
+            time.sleep(0.5)
+            st.rerun()
 
 # --- 6. ADMIN ZÁLOŽKA: EXCEL MATICE STATISTIK ČR ---
 elif volba == "Správa statistik ČR (Excel matice)" and current_user == "admin":

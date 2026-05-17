@@ -11,7 +11,7 @@ from datetime import datetime
 VSTUPNI_HESLO_APP = "d3105tr31ci"
 
 if "uzivatel" not in st.session_state:
-    st.title("🏒 MS v hokeji - Tipovačka")
+   # st.title("🏒 MS v hokeji - Tipovačka")
     
     # První kontrola: Je uživatel „ověřený“ pro vstup na web?
     if "overen_vstup" not in st.session_state:

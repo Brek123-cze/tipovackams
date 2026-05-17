@@ -543,73 +543,37 @@ elif volba == "Moje tipy (Zápasy) 📝":
                 stary_d = data["tipy"][current_user].get(z_id, {}).get("d", 0)
                 stary_h = data["tipy"][current_user].get(z_id, {}).get("h", 0)
 
-              # --- KONTROLA ČASU ZAHÁJENÍ ZÁPASU (16 mezer) ---
+               # --- KONTROLA ČASU ZAHÁJENÍ ZÁPASU (16 mezer) ---
                 import datetime as dt_lib
                 aktualni_cas = dt_lib.datetime.now()
                 
+                # Vygenerujeme dnešní den ve dvou nejčastějších formátech
+                # (Zajistí to shodu, ať už máš v roletce "17. 5." nebo "17.05.")
+                dnes_format1 = aktualni_cas.strftime("%d.%m.")               # "17.05."
+                dnes_format2 = f"{aktualni_cas.day}. {aktualni_cas.month}."  # "17. 5."
+                
                 zapas_uzamcen = False
-                try:
-                    # Načteme čas zápasu z konfigurace (např. "16:20")
-                    cas_obj = dt_lib.datetime.strptime(z["datum"].strip(), "%H:%M")
-                    
-                    # Zjistíme, jaké datum (rok, měsíc, den) má vybraný hrací den v roletce.
-                    # Abychom to nemuseli parsovat textově, podíváme se, jak daleko je vybraný den 
-                    # od prvního dne turnaje, nebo jednoduše porovnáme indexy zápasů.
-                    # Nejčistší hokejové řešení: složíme datum přímo z reálného dnešního dne,
-                    # ale upravíme ho podle toho, zda se jedná o zápas v kalendáři dnes, včera nebo zítra.
-                    
-                    # Pro zjednodušení: Vytvoříme bod zahájení zápasu předpokládajíc, že se hraje DNES
-                    termin_zapasu_dnes = aktualni_cas.replace(
-                        hour=cas_obj.hour, 
-                        minute=cas_obj.minute, 
-                        second=0, 
-                        microsecond=0
-                    )
-                    
-                    # Nyní zjistíme, zda vybraný den v roletce je DNES, MINULOST nebo BUDOUCNOST
-                    # Využijeme k tomu trik: najdeme dnešní den v seznamu DNY
+                
+                # Je vybraný den v roletce ten dnešní?
+                je_dnes = (vybrany_den.replace(" ", "") == dnes_format1.replace(" ", "") or 
+                           vybrany_den.replace(" ", "") == dnes_format2.replace(" ", ""))
+                
+                if je_dnes:
                     try:
-                        # Pokusíme se najít formát dnešního dne v seznamu DNY (např. "17. 5." nebo "17.05.")
-                        # Pokud tvůj seznam DNY obsahuje jiné formáty, najdeme index vybraného dne ručně.
-                        index_vybraneho = DNY.index(vybrany_den)
+                        # Pokud je to DNES, složíme kompletní dnešní datum s časem zápasu
+                        cas_obj = dt_lib.datetime.strptime(z["datum"].strip(), "%H:%M")
+                        cas_zapasu = aktualni_cas.replace(hour=cas_obj.hour, minute=cas_obj.minute, second=0, microsecond=0)
                         
-                        # Pokusíme se odhadnout index dnešního dne v seznamu DNY
-                        dnes_str1 = aktualni_cas.strftime("%d.%m.")
-                        dnes_str2 = aktualni_cas.strftime("%e. %m.").replace(" ", "") # "17.5."
-                        dnes_str3 = f"{aktualni_cas.day}. {aktualni_cas.month}." # "17. 5."
-                        
-                        index_dnes = -1
-                        for idx, d_nazev in enumerate(DNY):
-                            d_cisty = d_nazev.replace(" ", "")
-                            if d_cisty == dnes_str1.replace(" ", "") or d_cisty == dnes_str2 or d_cisty == dnes_str3.replace(" ", ""):
-                                index_dnes = idx
-                                break
-                        
-                        if index_dnes != -1:
-                            if index_vybraneho < index_dnes:
-                                # Vybraný den je v MINULOSTI -> zamknout hned
-                                zapas_uzamcen = True
-                            elif index_vybraneho > index_dnes:
-                                # Vybraný den je v BUDOUCNOSTI -> nechat otevřený
-                                zapas_uzamcen = False
-                            else:
-                                # Je to DNES -> zkontrolujeme hodiny a minuty
-                                zapas_uzamcen = aktualni_cas > termin_zapasu_dnes
-                        else:
-                            # Nouzový režim: Pokud nedokážeme určit dnešní den, hlídáme aspoň čas v rámci dne
-                            zapas_uzamcen = aktualni_cas > termin_zapasu_dnes
+                        # Zápas zamkneme pouze v případě, že reálný čas už překročil čas zápasu
+                        zapas_uzamcen = aktualni_cas > cas_zapasu
                     except:
-                        # Pokud selže indexace, zamkneme jen podle času (dnešní nouzovka)
-                        zapas_uzamcen = aktualni_cas > termin_zapasu_dnes
-                        
-                except Exception as e:
+                        zapas_uzamcen = False
+                else:
+                    # Pokud se prohlíží jiný den než dnešek, čas neřešíme!
+                    # Zápas v budoucí dny zůstane VŽDY odemčený.
                     zapas_uzamcen = False
                     
-                # Pokud jsi zápas už označil jako vyhodnocený v adminu, zamkneme ho taky
-                if data["vysledky"].get(str(z["id"]), {}).get("vyhodnoceno", False):
-                    zapas_uzamcen = True
-                    
-                # Pokud jsi zápas už označil jako vyhodnocený v adminu, zamkneme ho taky
+                # Pokud jsi zápas už označil jako vyhodnocený v adminu, zamkneme ho taky (minulost)
                 if data["vysledky"].get(str(z["id"]), {}).get("vyhodnoceno", False):
                     zapas_uzamcen = True
                         

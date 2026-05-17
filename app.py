@@ -5,10 +5,10 @@ import requests
 import json
 from datetime import datetime
 
-st.set_page_config(page_title="MS v hokeji - Super Tipovačka", page_icon="🏒", layout="wide")
+# st.set_page_config(page_title="MS v hokeji - Super Tipovačka", page_icon="🏒", layout="wide")
 
 # Vstupní heslo pro celou partu
-VSTUPNI_HESLO_APP = "naseparta"
+VSTUPNI_HESLO_APP = "d310str31ci"
 
 if "uzivatel" not in st.session_state:
     st.title("🏒 MS v hokeji - Tipovačka")

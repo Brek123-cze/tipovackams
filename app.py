@@ -7,6 +7,23 @@ from datetime import datetime
 
 st.set_page_config(page_title="MS v hokeji - Super Tipovačka", page_icon="🏒", layout="wide")
 
+# Vstupní heslo pro celou partu
+VSTUPNI_HESLO_APP = "naseparta"
+
+if "uzivatel" not in st.session_state:
+    st.title("🏒 MS v hokeji - Tipovačka")
+    
+    # První kontrola: Je uživatel „ověřený“ pro vstup na web?
+    if "overen_vstup" not in st.session_state:
+        heslo_webu = st.text_input("Zadej společné heslo pro přístup na web:", type="password")
+        if st.button("Vstoupit"):
+            if heslo_webu == VSTUPNI_HESLO_APP:
+                st.session_state["overen_vstup"] = True
+                st.rerun()
+            else:
+                st.error("Chybné heslo webu!")
+        st.stop() # Zastaví vykreslování zbytku stránky
+
 ADMIN_HESLO = "hokej2026"
 HRACI = ["Flesi", "Honza", "Jirka", "Karel", "Petr"]
 

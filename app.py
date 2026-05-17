@@ -183,13 +183,18 @@ def uloz_do_google_sheets(aktualni_data):
             
         # ✨ OPRAVA CELOTURNAJOVÝCH TIPŮ: Tady se dříve ukládaly jen první dvě hodnoty!
         ct = aktualni_data["celkove_tipy"][hrac]
+        semifinale_list = ct.get("semifinale", ["", "", "", ""])
+        # Zajistíme, aby pole mělo vždy alespoň 4 prvky
+        while len(semifinale_list) < 4:
+            semifinale_list.append("")
+            
         rows.append({
             "Klíč": f"celkove_{hrac}", 
             "Hodnota1": ct.get("mistr", ""), 
-            "Hodnota2": ct.get("semifinale", ["", "", "", ""])[0] if len(ct.get("semifinale", [])) > 0 else "", 
-            "Hodnota3": ct.get("semifinale", ["", "", "", ""])[1] if len(ct.get("semifinale", [])) > 1 else "", 
-            "Hodnota4": ct.get("semifinale", ["", "", "", ""])[2] if len(ct.get("semifinale", [])) > 2 else "", 
-            "Hodnota5": ct.get("semifinale", ["", "", "", ""])[3] if len(ct.get("semifinale", [])) > 3 else "", 
+            "Hodnota2": semifinale_list[0], 
+            "Hodnota3": semifinale_list[1], 
+            "Hodnota4": semifinale_list[2], 
+            "Hodnota5": semifinale_list[3], 
             "Hodnota6": ct.get("cesko", "Základní skupina"),
             "Hodnota7": ct.get("mvp", ""), 
             "Hodnota8": int(ct.get("goly", 0)) if ct.get("goly") else 0

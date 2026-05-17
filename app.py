@@ -387,61 +387,33 @@ if volba == "Hlavní přehled":
             medaile = "🥇" if idx == 0 else "🥈" if idx == 1 else "🥉" if idx == 2 else "🔵"
             st.markdown(f"<div style='background-color: rgba(30,61,89,0.05); padding: 8px; border-radius: 6px; margin-bottom: 4px; display: flex; justify-content: space-between;'><b>{medaile} {idx+1}. {p['jmeno']}</b><span><b>{p['body']} B</b> (🎯 {p['presne']}x)</span></div>", unsafe_allow_html=True)
 
-        # --- NOVÁ SEKCE: DETAIL BODOVÁNÍ ZÁPAS PO ZÁPASE ---
+       # --- DETAIL BODOVÁNÍ ZÁPAS PO ZÁPASE ---
         st.write("")
         with st.expander("🔍 Rozbalit detailní bodování hráčů (zápas po zápase)"):
             vybrany_hrac = st.selectbox("Vyber hráče pro detail bodů:", HRACI)
             
             if vybrany_hrac:
-                # Spočítáme body pro vybraného hráče pro každý zápas zvlášť
                 zapas_body = {}
-                for z_id, z in ZAPASY.items():
-                    # Načteme reálný výsledek
+                for z in ZAPASY:
+                    z_id = str(z["id"])
                     res = data["vysledky"].get(z_id)
-                    # Načteme tip hráče
                     tip = data["tipy"][vybrany_hrac].get(z_id)
                     zolik = data["zolici"][vybrany_hrac].get(z_id, False)
                     
                     if res and tip and tip["d"] is not None and tip["h"] is not None:
-                        # Výpočet bodů pro tento jeden zápas
-                        body = 0
-                        # Přesný výsledek
-                        if res["d"] == tip["d"] and res["h"] == tip["h"]:
-                            body = 3
-                        # Rozdíl skóre (např. 4:2 vs 3:1) nebo remíza jinak
-                        elif (res["d"] - res["h"]) == (tip["d"] - tip["h"]):
-                            body = 2
-                        # Správný vítěz
-                        elif ((res["d"] > res["h"] and tip["d"] > tip["h"]) or 
-                              (res["d"] < res["h"] and tip["d"] < tip["h"])):
-                            body = 1
-                            
-                        if zolik:
-                            body *= 2
-                        
-                        zapas_body[int(z_id)] = body
+                        b, _ = spocitej_body_hrace(tip["d"], tip["h"], res["d"], res["h"], zolik)
+                        zapas_body[int(z_id)] = b
                     else:
-                        zapas_body[int(z_id)] = 0 # Neodehrané nebo netipované
+                        zapas_body[int(z_id)] = 0
                 
-                # Nyní poskládáme tabulku do struktury: 8 řádků a 16 sloupců (8 dvojic Zápas + Body)
-                # Skupina 1: zápasy 1-8, Skupina 2: zápasy 9-16, Skupina 3: zápasy 17-24, Skupina 4: zápasy 25-32...
-                max_zapasu = max(int(k) for k in ZAPASY.keys()) if ZAPASY else 64
-                import pandas as pd
-                
-                # Vytvoříme prázdnou matici 8 řádků
-                matice_data = {f"Zápas {i+1}": [] for i in range(8)} # Bloky sloupců rozlišíme v záhlaví
-                
-                # Pro přehlednost vytvoříme 8 řádků, kde v každém řádku bude info o zápasech jdoucích pod sebou
-                # Blok 1 (řádky 1-8), Blok 2 (řádky 9-16), Blok 3 (řádky 17-24), Blok 4 (řádky 25-32)
                 radky_list = []
-                for r in range(1, 9): # 8 řádků
+                for r in range(1, 9):
                     radek = {}
-                    # Poskládáme sloupce vedle sebe (Zápas A | Body A | Zápas B | Body B ...)
-                    for c in range(8): # 8 dvojic sloupců = max 64 zápasů základní skupiny
+                    for c in range(7):
                         z_index = r + (c * 8)
-                        if z_index <= max_zapasu:
-                            z_info = ZAPASY.get(str(z_index), {})
-                            tymy = f"{z_info.get('d', '')[0:3]}. - {z_info.get('h', '')[0:3]}." if 'd' in z_info else f"Zápas {z_index}"
+                        if z_index <= len(ZAPASY):
+                            z_info = ZAPASY[z_index - 1]
+                            tymy = f"{z_info['domaci'][0:3]}. - {z_info['hoste'][0:3]}."
                             radek[f"Zápas (sk. {c+1})"] = f"Z{z_index} ({tymy})"
                             radek[f"Body (sk. {c+1})"] = f"{zapas_body.get(z_index, 0)} b"
                         else:

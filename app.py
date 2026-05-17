@@ -1,18 +1,21 @@
 import streamlit as st
 import pandas as pd
 import time
-from streamlit_gsheets import GSheetsConnection
+import requests
+import json
 
 st.set_page_config(page_title="MS v hokeji - Super Tipovačka", page_icon="🏒", layout="wide")
 
 ADMIN_HESLO = "hokej2026"
 HRACI = ["Flesi", "Honza", "Jirka", "Karel", "Petr"]
 
+# ⚠️ SEM VLOŽ TEN DLOUHÝ ODKAZ, KTERÝ JSI ZKOPÍROVAL V KROKU 1 Z APPS SCRIPTU:
+URL_API = "https://script.google.com/macros/s/AKfycbw8u_DCdQYGaH4iCQSJ7Zghq_60XTz7MPtIu4X1nAhQ-sCO-GHNig9ggJdPF437u65L/exec"
+
 # --- ROZDĚLENÍ TÝMŮ DO SKUPIN ---
 SKUPINA_A_TYMY = ["Finsko", "Švýcarsko", "Rakousko", "Lotyšsko", "Německo", "USA", "Maďarsko", "Velká Británie"]
 SKUPINA_B_TYMY = ["Kanada", "Česko", "Slovensko", "Slovinsko", "Norsko", "Švédsko", "Dánsko", "Itálie"]
 
-# --- SPRÁVNÁ SOUČASNÁ SOUPISKA ČR ---
 SOUPISKA_CR = [
     "Alscher Marek", "Beránek Ondřej", "Blümel Matěj", "Cibulka Tomáš", "Černoch Jiří",
     "Červenka Roman", "Flek Jakub", "Galvas Tomáš", "Hájek Libor", "Hronek Filip",
@@ -27,7 +30,6 @@ SLOUPCE_MATICE = []
 for z in ZAPASY_TYPY:
     SLOUPCE_MATICE.extend([f"{z} (G)", f"{z} (A)"])
 
-# --- KOMPLETNÍ SEZNAM ZÁPASŮ ---
 ZAPASY = [
     {"id": "1", "den": "15. 5. (Pátek)", "datum": "16:20", "domaci": "Finsko", "hoste": "Německo", "skupina": "A"},
     {"id": "2", "den": "15. 5. (Pátek)", "datum": "16:20", "domaci": "Švédsko", "hoste": "Kanada", "skupina": "B"},
@@ -91,74 +93,69 @@ DNY = []
 for z in ZAPASY:
     if z["den"] not in DNY: DNY.append(z["den"])
 
-# --- PROPOJENÍ S GOOGLE SHEETS VIA JEDINÝ LIST "Data" ---
-conn = st.connection("gsheets", type=GSheetsConnection)
+# --- VYSOKORYCHLOSTNÍ STAHOVÁNÍ DAT PŘES API (Cache na 5 minut) ---
+@st.cache_data(ttl=300)
+def fetch_data_from_api(url):
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code == 200:
+            return r.json()
+    except:
+        pass
+    return []
 
 def nacti_vsechna_data():
-    # Výchozí čistá struktura
     vysledky = {}
     tipy = {h: {} for h in HRACI}
     zolici = {h: {} for h in HRACI}
     celkove_tipy = {h: {"mistr": "", "semifinale": ["", "", "", ""], "cesko": "Základní skupina", "mvp": "", "goly": 0} for h in HRACI}
     kanadske_bodovani = {hrac: {col: 0 for col in SLOUPCE_MATICE} for hrac in SOUPISKA_CR}
 
-    try:
-        # Načteme celou tabulku "Data" naráz (Rychlostní cache na 5 minut = ttl=300)
-        df = conn.read(worksheet="Data", ttl=300)
+    raw_json = fetch_data_from_api(URL_API)
+    
+    for row in raw_json:
+        klic = str(row.get("Klíč", ""))
+        if not klic: continue
         
-        for _, row in df.iterrows():
-            klic = str(row.get("Klíč", ""))
-            if not klic: continue
+        if klic.startswith("vysledky_"):
+            z_id = klic.replace("vysledky_", "")
+            vysledky[z_id] = {"d": int(row["Hodnota1"]), "h": int(row["Hodnota2"]), "pp_sn": bool(int(row["Hodnota3"]))}
             
-            # Rozřazení dat podle klíčů
-            if klic.startswith("vysledky_"):
-                z_id = klic.replace("vysledky_", "")
-                vysledky[z_id] = {"d": int(row["Hodnota1"]), "h": int(row["Hodnota2"]), "pp_sn": bool(row["Hodnota3"])}
+        elif klic.startswith("tip_") and "_z_" in klic:
+            casti = klic.split("_")
+            hrac, z_id = casti[1], casti[3]
+            if hrac in tipy:
+                tipy[hrac][z_id] = {"d": int(row["Hodnota1"]), "h": int(row["Hodnota2"])}
                 
-            elif klic.startswith("tip_") and "_z_" in klic:
-                # Formát: tip_Honza_z_12
-                casti = klic.split("_")
-                hrac = casti[1]
-                z_id = casti[3]
-                if hrac in tipy:
-                    tipy[hrac][z_id] = {"d": int(row["Hodnota1"]), "h": int(row["Hodnota2"])}
-                    
-            elif klic.startswith("zolik_"):
-                casti = klic.split("_")
-                hrac = casti[1]
-                z_id = casti[3]
-                if hrac in zolici:
-                    zolici[hrac][z_id] = bool(row["Hodnota1"])
-                    
-            elif klic.startswith("celkove_"):
-                hrac = klic.replace("celkove_", "")
-                if hrac in celkove_tipy:
-                    celkove_tipy[hrac] = {
-                        "mistr": str(row["Hodnota1"]),
-                        "semifinale": [str(row["Hodnota2"]), str(row["Hodnota3"]), str(row["Hodnota4"]), str(row["Hodnota5"])],
-                        "cesko": str(row["Hodnota6"]),
-                        "mvp": str(row["Hodnota7"]),
-                        "goly": int(row["Hodnota8"]) if row["Hodnota8"] else 0
-                    }
-            elif klic.startswith("stats_"):
-                hrac_jmeno = klic.replace("stats_", "")
-                if hrac_jmeno in kanadske_bodovani:
-                    for col in SLOUPCE_MATICE:
-                        kanadske_bodovani[hrac_jmeno][col] = int(row.get(col, 0) if pd.notna(row.get(col, 0)) else 0)
-    except Exception as e:
-        pass # Pokud je tabulka prázdná, použijí se výchozí nuly
+        elif klic.startswith("zolik_"):
+            casti = klic.split("_")
+            hrac, z_id = casti[1], casti[3]
+            if hrac in zolici:
+                zolici[hrac][z_id] = bool(int(row["Hodnota1"]))
+                
+        elif klic.startswith("celkove_"):
+            hrac = klic.replace("celkove_", "")
+            if hrac in celkove_tipy:
+                celkove_tipy[hrac] = {
+                    "mistr": str(row.get("Hodnota1", "")),
+                    "semifinale": [str(row.get("Hodnota2", "")), str(row.get("Hodnota3", "")), str(row.get("Hodnota4", "")), str(row.get("Hodnota5", ""))],
+                    "cesko": str(row.get("Hodnota6", "Základní skupina")),
+                    "mvp": str(row.get("Hodnota7", "")),
+                    "goly": int(row["Hodnota8"]) if row.get("Hodnota8") else 0
+                }
+        elif klic.startswith("stats_"):
+            hrac_jmeno = klic.replace("stats_", "")
+            if hrac_jmeno in kanadske_bodovani:
+                for col in SLOUPCE_MATICE:
+                    kanadske_bodovani[hrac_jmeno][col] = int(row.get(col, 0) if (col in row and row[col] != "") else 0)
 
     return {"vysledky": vysledky, "tipy": tipy, "zolici": zolici, "celkove_tipy": celkove_tipy, "kanadske_bodovani": kanadske_bodovani}
 
 def uloz_do_google_sheets(aktualni_data):
-    # Přetransformujeme celou paměť do jedné přehledné tabulky pro Google Sheets
     rows = []
-    
-    # 1. Výsledky
     for k, v in aktualni_data["vysledky"].items():
         rows.append({"Klíč": f"vysledky_{k}", "Hodnota1": v["d"], "Hodnota2": v["h"], "Hodnota3": int(v["pp_sn"])})
         
-    # 2. Tipy hráčů a žolíci
     for hrac in HRACI:
         for z_id, v in aktualni_data["tipy"][hrac].items():
             rows.append({"Klíč": f"tip_{hrac}_z_{z_id}", "Hodnota1": v["d"], "Hodnota2": v["h"]})
@@ -173,18 +170,19 @@ def uloz_do_google_sheets(aktualni_data):
             "Hodnota7": ct["mvp"], "Hodnota8": ct["goly"]
         })
         
-    # 3. Statistiky hráčů ČR
     for hrac in SOUPISKA_CR:
         r = {"Klíč": f"stats_{hrac}"}
         for col in SLOUPCE_MATICE:
             r[col] = aktualni_data["kanadske_bodovani"].get(hrac, {}).get(col, 0)
         rows.append(r)
         
-    df = pd.DataFrame(rows)
-    # Zapíšeme všechno hromadně na jediný list "Data"
-    conn.update(worksheet="Data", data=df)
+    try:
+        # Bleskové odeslání přes POST na Google Web App bez autorizačních chyb
+        requests.post(URL_API, json=rows, timeout=15)
+        st.cache_data.clear() # Okamžitě smaže lokální cache, aby se změna projevila všem
+    except:
+        st.error("Nepodařilo se navázat spojení s Google Diskem. Zkus to za chvíli.")
 
-# Načtení dat z tabulky
 data = nacti_vsechna_data()
 
 # --- LOGIKA BODOVÁNÍ PRO HRÁČE ---
@@ -290,7 +288,6 @@ sorted_skupina_a, sorted_skupina_b, celkove_goly_ms = generuj_tabulky_ms(data)
 df_statistiky = ziskej_dataframe_statistik(data)
 nejlepsi_cesi_output = urci_nejlepsi_hrace(df_statistiky)
 
-# Výpočet celkového pořadí hráčů
 statistiky_hracu = {h: {"body": 0, "presne": 0} for h in HRACI}
 for hrac in HRACI:
     for z in ZAPASY:
@@ -437,7 +434,6 @@ elif volba == "Moje tipy (Zápasy) 📝":
                         data["zolici"][current_user][z["id"]] = (z["id"] == zvoleny_zolik_id)
 
                 uloz_do_google_sheets(data)
-                st.cache_data.clear() 
                 st.success("Tipy pro vybraný den uloženy do Google Tabulky!")
                 time.sleep(0.5)
                 st.rerun()
@@ -471,7 +467,6 @@ elif volba == "Celoturnajové tipy 🏆":
                     "mistr": mistr, "semifinale": [sf1, sf2, sf3, sf4], "cesko": cesko, "mvp": mvp, "goly": goly
                 }
                 uloz_do_google_sheets(data)
-                st.cache_data.clear()
                 st.success("Uloženo do Google Tabulky!")
                 time.sleep(0.5)
                 st.rerun()
@@ -549,7 +544,6 @@ elif volba == "Zadávání výsledků" and current_user == "admin":
                         if z_id in data["vysledky"]: del data["vysledky"][z_id]
                         
                 uloz_do_google_sheets(data)
-                st.cache_data.clear() 
                 st.success("Zápasy bezpečně synchronizovány s Google Sheets!")
                 time.sleep(0.5)
                 st.rerun()
@@ -573,7 +567,6 @@ elif volba == "Správa statistik ČR (Excel matice)" and current_user == "admin"
                 jmeno_hrace = row["Hráč"]
                 data["kanadske_bodovani"][jmeno_hrace] = {col: int(row[col]) for col in SLOUPCE_MATICE}
             uloz_do_google_sheets(data)
-            st.cache_data.clear() 
             st.success("Statistiky hráčů zapsány online do cloudu!")
             time.sleep(0.5)
             st.rerun()

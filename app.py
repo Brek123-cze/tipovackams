@@ -223,7 +223,11 @@ data = nacti_vsechna_data()
 
 # --- LOGIKA BODOVÁNÍ PRO HRÁČE ---
 def spocitej_body_hrace(tip_d, tip_h, real_d, real_h, zolik=False, real_pp_sn=False):
-    # Pokud zápas skončil PP/SN, pro účely tipu uděláme z reálného skóre remízu
+    if tip_d is None or tip_h is None or real_d is None or real_h is None:
+        return 0, False
+
+    # --- ÚPRAVA PRO PP/SN ---
+    # Pokud zápas skončil v prodloužení, efektivní realitou pro tipy je remíza
     if real_pp_sn:
         min_goly = min(real_d, real_h)
         real_d_efektivni = min_goly
@@ -232,24 +236,52 @@ def spocitej_body_hrace(tip_d, tip_h, real_d, real_h, zolik=False, real_pp_sn=Fa
         real_d_efektivni = real_d
         real_h_efektivni = real_h
 
-    body = 0
-    rozdil_real = real_d_efektivni - real_h_efektivni
+    # Pomocné proměnné pro vyhodnocení
+    vitez_tip = "D" if tip_d > tip_h else ("H" if tip_h > tip_d else "R")
+    vitez_real = "D" if real_d_efektivni > real_h_efektivni else ("H" if real_h_efektivni > real_d_efektivni else "R")
+    
     rozdil_tip = tip_d - tip_h
+    rozdil_real = real_d_efektivni - real_h_efektivni
+    
+    goly_tip = tip_d + tip_h
+    goly_real = real_d_efektivni + real_h_efektivni
 
-    # 1. Přesný výsledek (po úpravě na remízu to u PP/SN zápasů skočí sem, pokud hráč tipoval správnou remízu)
-    if real_d_efektivni == tip_d and real_h_efektivni == tip_h:
+    body = 0
+    presny = False
+
+    # --- MATEMATIKA BODŮ PODLE TVÝCH PRAVIDEL ---
+    
+    # 1. Přesný výsledek (4.2.2.1) -> 10 bodů
+    if tip_d == real_d_efektivni and tip_h == real_h_efektivni:
         body = 10
-    # 2. Správný rozdíl skóre (nebo jakákoliv jiná remíza)
-    elif rozdil_real == rozdil_tip:
+        presny = True
+        
+    # 2. Vítěz + rozdíl NEBO Vítěz + celkový počet gólů NEBO jakákoliv jiná remíza (4.2.2.2) -> 6 bodů
+    elif (vitez_tip == vitez_real and rozdil_tip == rozdil_real) or \
+         (vitez_tip == vitez_real and goly_tip == goly_real) or \
+         (vitez_real == "R" and vitez_tip == "R"):
         body = 6
-    # 3. Správný vítěz
-    elif (rozdil_real > 0 and rozdil_tip > 0) or (rozdil_real < 0 and rozdil_tip < 0):
+        
+    # 3. Pouze správný vítěz utkání (4.2.2.3) -> 4 body
+    elif vitez_tip == vitez_real:
         body = 4
+        
+    # 4. Pouze správný celkový počet gólů v zápase (4.2.2.4) -> 2 body
+    elif goly_tip == goly_real:
+        body = 2
+        
+    # 5. Netrefil vůbec nic (4.2.2.5) -> 0 bodů
+    else:
+        body = 0
 
+    # --- APLIKACE ŽOLÍKA ---
     if zolik:
-        body *= 2
+        if body > 0:
+            body = body * 2  # Dvojnásobek za úspěch
+        else:
+            body = -2        # Trest -2 body, pokud měl dostat nulu
 
-    return body, ""
+    return body, presny
 
 # --- DYNAMICKÝ VÝPOČET TABULEK SKUPIN MS ---
 def generuj_tabulky_ms(data_turnaje):

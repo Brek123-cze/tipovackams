@@ -238,13 +238,13 @@ def spocitej_body_hrace(tip_d, tip_h, real_d, real_h, zolik=False, real_pp_sn=Fa
 
     # 1. Přesný výsledek (po úpravě na remízu to u PP/SN zápasů skočí sem, pokud hráč tipoval správnou remízu)
     if real_d_efektivni == tip_d and real_h_efektivni == tip_h:
-        body = 3
+        body = 10
     # 2. Správný rozdíl skóre (nebo jakákoliv jiná remíza)
     elif rozdil_real == rozdil_tip:
-        body = 2
+        body = 6
     # 3. Správný vítěz
     elif (rozdil_real > 0 and rozdil_tip > 0) or (rozdil_real < 0 and rozdil_tip < 0):
-        body = 1
+        body = 4
 
     if zolik:
         body *= 2

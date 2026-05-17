@@ -91,101 +91,103 @@ DNY = []
 for z in ZAPASY:
     if z["den"] not in DNY: DNY.append(z["den"])
 
-# --- PROPOJENÍ S GOOGLE SHEETS S VYSOKORYCHLOSTNÍ MEZIPAMĚTÍ ---
+# --- PROPOJENÍ S GOOGLE SHEETS VIA JEDINÝ LIST "Data" ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def nacti_vsechna_data():
-    # ttl=300 zajistí stahování dat jednou za 5 minut, aplikace tak běží bleskově
-    try:
-        vysledky_df = conn.read(worksheet="vysledky", ttl=300)
-        vysledky = {str(row["id"]): {"d": row["d"], "h": row["h"], "pp_sn": bool(row["pp_sn"])} for _, row in vysledky_df.iterrows()}
-    except:
-        vysledky = {}
-
+    # Výchozí čistá struktura
+    vysledky = {}
     tipy = {h: {} for h in HRACI}
-    for hrac in HRACI:
-        try:
-            df_t = conn.read(worksheet=f"tipy_{hrac}", ttl=300)
-            for _, row in df_t.iterrows():
-                tipy[hrac][str(row["id"])] = {"d": row["d"], "h": row["h"]}
-        except:
-            pass
-
     zolici = {h: {} for h in HRACI}
-    for hrac in HRACI:
-        try:
-            df_z = conn.read(worksheet=f"zolici_{hrac}", ttl=300)
-            for _, row in df_z.iterrows():
-                zolici[hrac][str(row["id"])] = bool(row["aktivni"])
-        except:
-            pass
-
-    celkove_tipy = {}
-    for hrac in HRACI:
-        try:
-            df_ct = conn.read(worksheet=f"celkove_{hrac}", ttl=300).iloc[0]
-            celkove_tipy[hrac] = {
-                "mistr": df_ct["mistr"],
-                "semifinale": [df_ct["sf1"], df_ct["sf2"], df_ct["sf3"], df_ct["sf4"]],
-                "cesko": df_ct["cesko"],
-                "mvp": df_ct["mvp"],
-                "goly": df_ct["goly"]
-            }
-        except:
-            celkove_tipy[hrac] = {"mistr": "", "semifinale": ["", "", "", ""], "cesko": "Základní skupina", "mvp": "", "goly": 0}
+    celkove_tipy = {h: {"mistr": "", "semifinale": ["", "", "", ""], "cesko": "Základní skupina", "mvp": "", "goly": 0} for h in HRACI}
+    kanadske_bodovani = {hrac: {col: 0 for col in SLOUPCE_MATICE} for hrac in SOUPISKA_CR}
 
     try:
-        df_kb = conn.read(worksheet="stats_cr", ttl=300)
-        kanadske_bodovani = {}
-        for _, row in df_kb.iterrows():
-            hrac_jmeno = row["Hráč"]
-            kanadske_bodovani[hrac_jmeno] = {}
-            for col in SLOUPCE_MATICE:
-                kanadske_bodovani[hrac_jmeno][col] = int(row[col])
-    except:
-        kanadske_bodovani = {hrac: {col: 0 for col in SLOUPCE_MATICE} for hrac in SOUPISKA_CR}
+        # Načteme celou tabulku "Data" naráz (Rychlostní cache na 5 minut = ttl=300)
+        df = conn.read(worksheet="Data", ttl=300)
+        
+        for _, row in df.iterrows():
+            klic = str(row.get("Klíč", ""))
+            if not klic: continue
+            
+            # Rozřazení dat podle klíčů
+            if klic.startswith("vysledky_"):
+                z_id = klic.replace("vysledky_", "")
+                vysledky[z_id] = {"d": int(row["Hodnota1"]), "h": int(row["Hodnota2"]), "pp_sn": bool(row["Hodnota3"])}
+                
+            elif klic.startswith("tip_") and "_z_" in klic:
+                # Formát: tip_Honza_z_12
+                casti = klic.split("_")
+                hrac = casti[1]
+                z_id = casti[3]
+                if hrac in tipy:
+                    tipy[hrac][z_id] = {"d": int(row["Hodnota1"]), "h": int(row["Hodnota2"])}
+                    
+            elif klic.startswith("zolik_"):
+                casti = klic.split("_")
+                hrac = casti[1]
+                z_id = casti[3]
+                if hrac in zolici:
+                    zolici[hrac][z_id] = bool(row["Hodnota1"])
+                    
+            elif klic.startswith("celkove_"):
+                hrac = klic.replace("celkove_", "")
+                if hrac in celkove_tipy:
+                    celkove_tipy[hrac] = {
+                        "mistr": str(row["Hodnota1"]),
+                        "semifinale": [str(row["Hodnota2"]), str(row["Hodnota3"]), str(row["Hodnota4"]), str(row["Hodnota5"])],
+                        "cesko": str(row["Hodnota6"]),
+                        "mvp": str(row["Hodnota7"]),
+                        "goly": int(row["Hodnota8"]) if row["Hodnota8"] else 0
+                    }
+            elif klic.startswith("stats_"):
+                hrac_jmeno = klic.replace("stats_", "")
+                if hrac_jmeno in kanadske_bodovani:
+                    for col in SLOUPCE_MATICE:
+                        kanadske_bodovani[hrac_jmeno][col] = int(row.get(col, 0) if pd.notna(row.get(col, 0)) else 0)
+    except Exception as e:
+        pass # Pokud je tabulka prázdná, použijí se výchozí nuly
 
     return {"vysledky": vysledky, "tipy": tipy, "zolici": zolici, "celkove_tipy": celkove_tipy, "kanadske_bodovani": kanadske_bodovani}
 
-def uloz_vysledky(vysledky):
-    rows = [{"id": k, "d": v["d"], "h": v["h"], "pp_sn": int(v["pp_sn"])} for k, v in vysledky.items()]
-    if rows:
-        df = pd.DataFrame(rows)
-        conn.update(worksheet="vysledky", data=df)
-
-def uloz_tipy_hrace(hrac, hrac_tipy):
-    rows = [{"id": k, "d": v["d"], "h": v["h"]} for k, v in hrac_tipy.items()]
-    df = pd.DataFrame(rows if rows else [None])
-    conn.update(worksheet=f"tipy_{hrac}", data=df)
-
-def uloz_zoliky_hrace(hrac, hrac_zolici):
-    rows = [{"id": k, "aktivni": int(v)} for k, v in hrac_zolici.items()]
-    df = pd.DataFrame(rows if rows else [None])
-    conn.update(worksheet=f"zolici_{hrac}", data=df)
-
-def uloz_celkove_tipy_hrace(hrac, ct):
-    row = {
-        "mistr": ct["mistr"],
-        "sf1": ct["semifinale"][0], "sf2": ct["semifinale"][1], "sf3": ct["semifinale"][2], "sf4": ct["semifinale"][3],
-        "cesko": ct["cesko"], "mvp": ct["mvp"], "goly": ct["goly"]
-    }
-    df = pd.DataFrame([row])
-    conn.update(worksheet=f"celkove_{hrac}", data=df)
-
-def uloz_stats_cr(kb):
+def uloz_do_google_sheets(aktualni_data):
+    # Přetransformujeme celou paměť do jedné přehledné tabulky pro Google Sheets
     rows = []
+    
+    # 1. Výsledky
+    for k, v in aktualni_data["vysledky"].items():
+        rows.append({"Klíč": f"vysledky_{k}", "Hodnota1": v["d"], "Hodnota2": v["h"], "Hodnota3": int(v["pp_sn"])})
+        
+    # 2. Tipy hráčů a žolíci
+    for hrac in HRACI:
+        for z_id, v in aktualni_data["tipy"][hrac].items():
+            rows.append({"Klíč": f"tip_{hrac}_z_{z_id}", "Hodnota1": v["d"], "Hodnota2": v["h"]})
+        for z_id, v in aktualni_data["zolici"][hrac].items():
+            rows.append({"Klíč": f"zolik_{hrac}_z_{z_id}", "Hodnota1": int(v)})
+            
+        ct = aktualni_data["celkove_tipy"][hrac]
+        rows.append({
+            "Klíč": f"celkove_{hrac}", 
+            "Hodnota1": ct["mistr"], "Hodnota2": ct["semifinale"][0], "Hodnota3": ct["semifinale"][1],
+            "Hodnota4": ct["semifinale"][2], "Hodnota5": ct["semifinale"][3], "Hodnota6": ct["cesko"],
+            "Hodnota7": ct["mvp"], "Hodnota8": ct["goly"]
+        })
+        
+    # 3. Statistiky hráčů ČR
     for hrac in SOUPISKA_CR:
-        r = {"Hráč": hrac}
+        r = {"Klíč": f"stats_{hrac}"}
         for col in SLOUPCE_MATICE:
-            r[col] = kb[hrac].get(col, 0)
+            r[col] = aktualni_data["kanadske_bodovani"].get(hrac, {}).get(col, 0)
         rows.append(r)
+        
     df = pd.DataFrame(rows)
-    conn.update(worksheet="stats_cr", data=df)
+    # Zapíšeme všechno hromadně na jediný list "Data"
+    conn.update(worksheet="Data", data=df)
 
 # Načtení dat z tabulky
 data = nacti_vsechna_data()
 
-# --- VÝPOČET BODOVÁNÍ PRO HRÁČE ---
+# --- LOGIKA BODOVÁNÍ PRO HRÁČE ---
 def spocitej_body_hrace(tip_d, tip_h, real_d, real_h, je_zolik=False):
     if tip_d is None or tip_h is None or real_d is None or real_h is None:
         return 0, False
@@ -378,7 +380,7 @@ if volba == "Hlavní přehled":
         with tab_a: zobraz_tabulku_skupiny_native(sorted_skupina_a)
         with tab_b: zobraz_tabulku_skupiny_native(sorted_skupina_b)
 
-# --- 2. ZÁLOŽKA: MOJE TIPY (ZÁPASY) PRO KLUKY S FORMULÁŘEM ---
+# --- 2. ZÁLOŽKA: MOJE TIPY (ZÁPASY) ---
 elif volba == "Moje tipy (Zápasy) 📝":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
@@ -393,7 +395,6 @@ elif volba == "Moje tipy (Zápasy) 📝":
             if z["den"] == vybrany_den and data["zolici"][current_user].get(z["id"], False):
                 aktivni_zolik_dnes = z["id"]
 
-        # Zabalení do formuláře, aby klukům aplikace neustále nenačítala
         with st.form("tipy_zapasu_form"):
             docasne_tipy = {}
             docasni_zolici = {}
@@ -422,14 +423,12 @@ elif volba == "Moje tipy (Zápasy) 📝":
 
         if ulozit_button:
             with st.spinner("Ukládám tvoje tipy na Disk..."):
-                # Vyřešení žolíků (v jeden den může být jen jeden)
                 zvoleny_zolik_id = None
                 for z_id, status in docasni_zolici.items():
                     if status:
                         zvoleny_zolik_id = z_id
                         break
                 
-                # Zápis do hlavního datového objektu
                 for z_id, skore in docasne_tipy.items():
                     data["tipy"][current_user][z_id] = skore
                 
@@ -437,14 +436,13 @@ elif volba == "Moje tipy (Zápasy) 📝":
                     if z["den"] == vybrany_den:
                         data["zolici"][current_user][z["id"]] = (z["id"] == zvoleny_zolik_id)
 
-                uloz_tipy_hrace(current_user, data["tipy"][current_user])
-                uloz_zoliky_hrace(current_user, data["zolici"][current_user])
-                st.cache_data.clear() # Moderní vyčištění mezipaměti
+                uloz_do_google_sheets(data)
+                st.cache_data.clear() 
                 st.success("Tipy pro vybraný den uloženy do Google Tabulky!")
                 time.sleep(0.5)
                 st.rerun()
 
-# --- 3. ZÁLOŽKA: CELOTURNAJOVÉ TIPY S FORMULÁŘEM ---
+# --- 3. ZÁLOŽKA: CELOTURNAJOVÉ TIPY ---
 elif volba == "Celoturnajové tipy 🏆":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
@@ -469,14 +467,10 @@ elif volba == "Celoturnajové tipy 🏆":
             
         if ulozit_celkove:
             with st.spinner("Ukládám dlouhodobé tipy..."):
-                nove_ct = {
-                    "mistr": mistr,
-                    "semifinale": [sf1, sf2, sf3, sf4],
-                    "cesko": cesko,
-                    "mvp": mvp,
-                    "goly": goly
+                data["celkove_tipy"][current_user] = {
+                    "mistr": mistr, "semifinale": [sf1, sf2, sf3, sf4], "cesko": cesko, "mvp": mvp, "goly": goly
                 }
-                uloz_celkove_tipy_hrace(current_user, nove_ct)
+                uloz_do_google_sheets(data)
                 st.cache_data.clear()
                 st.success("Uloženo do Google Tabulky!")
                 time.sleep(0.5)
@@ -516,7 +510,7 @@ elif volba == "Tipy ostatních 👀":
                     st.write(f"🎯 **Český MVP:** {ct.get('mvp', '-')}")
                     st.write(f"🚨 **Tip gólů:** {ct.get('goly', '-')}")
 
-# --- 5. ADMIN ZÁLOŽKA: ZADÁVÁNÍ VÝSLEDKŮ S FORMULÁŘEM ---
+# --- 5. ADMIN ZÁLOŽKA: ZADÁVÁNÍ VÝSLEDKŮ ---
 elif volba == "Zadávání výsledků" and current_user == "admin":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
@@ -547,24 +541,22 @@ elif volba == "Zadávání výsledků" and current_user == "admin":
             admin_ulozit_button = st.form_submit_button("Uložit zápasy a přepočítat celou aplikaci 🔄")
             
         if admin_ulozit_button:
-            with st.spinner("Ukládám výsledky a přepočítávám body hráčů..."):
+            with st.spinner("Ukládám výsledky a přepočítávám body..."):
                 for z_id, v in docasne_vysledky.items():
                     if v["aktivni"]:
                         data["vysledky"][z_id] = {"d": v["d"], "h": v["h"], "pp_sn": v["pp_sn"]}
                     else:
                         if z_id in data["vysledky"]: del data["vysledky"][z_id]
                         
-                uloz_vysledky(data["vysledky"])
-                st.cache_data.clear() # Správné smazání mezipaměti
+                uloz_do_google_sheets(data)
+                st.cache_data.clear() 
                 st.success("Zápasy bezpečně synchronizovány s Google Sheets!")
                 time.sleep(0.5)
                 st.rerun()
 
-# --- 6. ADMIN ZÁLOŽKA: EXCEL MATICE S FORMULÁŘEM ---
+# --- 6. ADMIN ZÁLOŽKA: EXCEL MATICE STATISTIK ČR ---
 elif volba == "Správa statistik ČR (Excel matice)" and current_user == "admin":
     st.title("👑 Administrace: Kanadské bodování")
-    st.write("Upravuj buňky v tabulce jako v Excelu. Data se odešlou na Google Disk až po kliknutí na tlačítko dole.")
-    
     df_editor_input = df_statistiky.drop(columns=["Celkem Góly", "Celkem Asistence", "Celkem Body (G+A)"])
     
     konfigurace_sloupcu = {"Hráč": st.column_config.TextColumn("Hráč", width=180, disabled=True)}
@@ -572,23 +564,16 @@ elif volba == "Správa statistik ČR (Excel matice)" and current_user == "admin"
         konfigurace_sloupcu[col] = st.column_config.NumberColumn(col, width=45, min_value=0, step=1)
     
     with st.form("excel_stats_form"):
-        upraveny_df = st.data_editor(
-            df_editor_input, 
-            key="excel_stats_editor", 
-            use_container_width=True, 
-            hide_index=True, 
-            column_config=konfigurace_sloupcu
-        )
+        upraveny_df = st.data_editor(df_editor_input, key="excel_stats_editor", use_container_width=True, hide_index=True, column_config=konfigurace_sloupcu)
         tlacitko_ulozit = st.form_submit_button("Uložit celou tabulku statistik najednou 💾")
         
     if tlacitko_ulozit:
         with st.spinner("Odesílám data na Google Disk..."):
-            nove_kb_flat = {}
             for _, row in upraveny_df.iterrows():
                 jmeno_hrace = row["Hráč"]
-                nove_kb_flat[jmeno_hrace] = {col: int(row[col]) for col in SLOUPCE_MATICE}
-            uloz_stats_cr(nove_kb_flat)
-            st.cache_data.clear() # Vymaže cache, aby se ihned aktualizoval stav na hlavní straně
+                data["kanadske_bodovani"][jmeno_hrace] = {col: int(row[col]) for col in SLOUPCE_MATICE}
+            uloz_do_google_sheets(data)
+            st.cache_data.clear() 
             st.success("Statistiky hráčů zapsány online do cloudu!")
             time.sleep(0.5)
             st.rerun()

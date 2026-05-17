@@ -12,7 +12,7 @@ HRACI = ["Flesi", "Honza", "Jirka", "Karel", "Petr"]
 SKUPINA_A_TYMY = ["Finsko", "Švýcarsko", "Rakousko", "Lotyšsko", "Německo", "USA", "Maďarsko", "Velká Británie"]
 SKUPINA_B_TYMY = ["Kanada", "Česko", "Slovensko", "Slovinsko", "Norsko", "Švédsko", "Dánsko", "Itálie"]
 
-# --- PŘESNÁ SOUPISKA Z TVÉHO OBRÁZKU ---
+# --- SPRÁVNÁ SOUČASNÁ SOUPISKA ČR ---
 SOUPISKA_CR = [
     "Alscher Marek", "Beránek Ondřej", "Blümel Matěj", "Cibulka Tomáš", "Černoch Jiří",
     "Červenka Roman", "Flek Jakub", "Galvas Tomáš", "Hájek Libor", "Hronek Filip",
@@ -96,7 +96,6 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 def nacti_vsechna_data():
     try:
-        # Zkusíme načíst existující tabulky z Google Sheetu
         vysledky_df = conn.read(worksheet="vysledky", ttl=0)
         vysledky = {str(row["id"]): {"d": row["d"], "h": row["h"], "pp_sn": bool(row["pp_sn"])} for _, row in vysledky_df.iterrows()}
     except:
@@ -134,7 +133,6 @@ def nacti_vsechna_data():
         except:
             celkove_tipy[hrac] = {"mistr": "", "semifinale": ["", "", "", ""], "cesko": "Základní skupina", "mvp": "", "goly": 0}
 
-    # Načtení matice statistik hráčů ČR
     try:
         df_kb = conn.read(worksheet="stats_cr", ttl=0)
         kanadske_bodovani = {}
@@ -336,11 +334,11 @@ def zobraz_tabulku_skupiny_native(sorted_data):
     rows = [{"Poř.": f"{idx+1}.", "Tým": tym, "Body": stats[0], "Skóre": f"+{stats[1]}" if stats[1] > 0 else f"{stats[1]}", "Góly": stats[2]} for idx, (tym, stats) in enumerate(sorted_data)]
     df = pd.DataFrame(rows)
     st.dataframe(df, use_container_width=False, hide_index=True, column_config={
-        "Poř.": st.column_config.TextColumn("Poř.", width="small"),
-        "Tým": st.column_config.TextColumn("Tým", width="medium"),
-        "Body": st.column_config.NumberColumn("Body", format="%d b.", width="small"),
-        "Skóre": st.column_config.TextColumn("Skóre", width="small"),
-        "Góly": st.column_config.NumberColumn("Góly", format="%d g.", width="small"),
+        "Poř.": st.column_config.TextColumn("Poř.", width=40),
+        "Tým": st.column_config.TextColumn("Tým", width=140),
+        "Body": st.column_config.NumberColumn("Body", format="%d b.", width=65),
+        "Skóre": st.column_config.TextColumn("Skóre", width=65),
+        "Góly": st.column_config.NumberColumn("Góly", format="%d g.", width=65),
     })
 
 # --- 1. ZÁLOŽKA: HLAVNÍ PŘEHLED ---
@@ -359,9 +357,20 @@ if volba == "Hlavní přehled":
         col1.metric("Celkem gólů na MS", f"{celkove_goly_ms} 🚨")
         col2.metric("Nejlepší Čech (G+A)", f"{nejlepsi_cesi_output} 🇨🇿")
         
+        # ZÚŽENÁ TABULKA KANADSKÉHO BODOVÁNÍ PRO DIVÁKY
         with st.expander("📊 Kompletní tabulka kanadského bodování českého týmu"):
             df_divaci = df_statistiky.sort_values(by=["Celkem Body (G+A)", "Celkem Góly"], ascending=[False, False])
-            st.dataframe(df_divaci[["Hráč", "Celkem Góly", "Celkem Asistence", "Celkem Body (G+A)"]], use_container_width=True, hide_index=True)
+            st.dataframe(
+                df_divaci[["Hráč", "Celkem Góly", "Celkem Asistence", "Celkem Body (G+A)"]], 
+                use_container_width=False, 
+                hide_index=True,
+                column_config={
+                    "Hráč": st.column_config.TextColumn("Hráč", width=180),
+                    "Celkem Góly": st.column_config.NumberColumn("G", width=50),
+                    "Celkem Asistence": st.column_config.NumberColumn("A", width=50),
+                    "Celkem Body (G+A)": st.column_config.NumberColumn("B", width=50),
+                }
+            )
         
         st.write("---")
         st.subheader("📋 Živé tabulky skupin")
@@ -503,15 +512,23 @@ elif volba == "Zadávání výsledků" and current_user == "admin":
             time.sleep(0.5)
             st.rerun()
 
-# --- 6. ADMIN ZÁLOŽKA: EXCEL MATICE STATISTIK ČR ---
+# --- 6. ADMIN ZÁLOŽKA: EXCEL MATICE S EXTRÉMNÍM ZÚŽENÍM SLOUPCŮ PRO G A A ---
 elif volba == "Správa statistik ČR (Excel matice)" and current_user == "admin":
     st.title("👑 Administrace: Kanadské bodování")
     df_editor_input = df_statistiky.drop(columns=["Celkem Góly", "Celkem Asistence", "Celkem Body (G+A)"])
-    konfigurace_sloupcu = {"Hráč": st.column_config.TextColumn("Hráč", width="medium", disabled=True)}
-    for col in SLOUPCE_MATICE:
-        konfigurace_sloupcu[col] = st.column_config.NumberColumn(col, width="small", min_value=0, step=1)
     
-    upraveny_df = st.data_editor(df_editor_input, key="excel_stats_editor", use_container_width=True, hide_index=True, column_config=konfigurace_sloupcu)
+    konfigurace_sloupcu = {"Hráč": st.column_config.TextColumn("Hráč", width=180, disabled=True)}
+    for col in SLOUPCE_MATICE:
+        # Vynucení šířky 45 pixelů pro sloupce G a A (přesně na jedno hokejové číslo)
+        konfigurace_sloupcu[col] = st.column_config.NumberColumn(col, width=45, min_value=0, step=1)
+    
+    upraveny_df = st.data_editor(
+        df_editor_input, 
+        key="excel_stats_editor", 
+        use_container_width=True, 
+        hide_index=True, 
+        column_config=konfigurace_sloupcu
+    )
     
     if st.button("Uložit celou tabulku statistik najednou 💾"):
         nove_kb_flat = {}

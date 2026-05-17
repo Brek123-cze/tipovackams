@@ -735,23 +735,23 @@ elif volba == "Zadávání výsledků" and current_user == "admin":
 # --- 6. ADMIN ZÁLOŽKA: EXCEL MATICE STATISTIK ČR ---
 elif volba == "Správa statistik ČR (Excel matice)" and current_user == "admin":
     st.title("👑 Administrace: Kanadské bodování")
-    df_editor_input = df_statistiky.drop(columns=[\"Celkem Góly\", \"Celkem Asistence\", \"Celkem Body (G+A)\"])
+    df_editor_input = df_statistiky.drop(columns=["Celkem Góly", "Celkem Asistence", "Celkem Body (G+A)"])
     
-    konfigurace_sloupcu = {\"Hráč\": st.column_config.TextColumn(\"Hráč\", width=180, disabled=True)}
+    konfigurace_sloupcu = {"Hráč": st.column_config.TextColumn("Hráč", width=180, disabled=True)}
     for col in SLOUPCE_MATICE:
         konfigurace_sloupcu[col] = st.column_config.NumberColumn(col, width=45, min_value=0, step=1)
     
-    with st.form(\"excel_stats_form\"):
-        upraveny_df = st.data_editor(df_editor_input, key=\"excel_stats_editor\", use_container_width=True, hide_index=True, column_config=konfigurace_sloupcu)
-        tlacitko_ulozit = st.form_submit_button(\"Uložit celou tabulku statistik najednou 💾\")
+    with st.form("excel_stats_form"):
+        upraveny_df = st.data_editor(df_editor_input, key="excel_stats_editor", use_container_width=True, hide_index=True, column_config=konfigurace_sloupcu)
+        tlacitko_ulozit = st.form_submit_button("Uložit celou tabulku statistik najednou 💾")
         
     if tlacitko_ulozit:
-        with st.spinner(\"Synchronizuji statistiky hráčů na Disk...\"):
+        with st.spinner("Synchronizuji statistiky hráčů na Disk..."):
             for _, radek in upraveny_df.iterrows():
-                hrac = radek[\"Hráč\"]
+                hrac = radek["Hráč"]
                 for col in SLOUPCE_MATICE:
-                    data[\"kanadske_bodovani\"][hrac][col] = int(radek[col])
+                    data["kanadske_bodovani"][hrac][col] = int(radek[col])
             uloz_do_google_sheets(data)
-            st.success(\"Statistiky kanadského bodování byly uloženy do Google Sheets!\")
+            st.success("Statistiky kanadského bodování byly uloženy do Google Sheets!")
             time.sleep(0.5)
             st.rerun()

@@ -647,7 +647,10 @@ elif volba == "Celoturnajové tipy 🏆":
 
         # ✨ KLÍČOVÁ OPRAVA: Do každého st.text_input doplňujeme na konec disabled=dlouhodobe_disabled
         tip_vitez = st.text_input("Celkový vítěz 🏆", value=stary_vitez, disabled=dlouhodobe_disabled)
-        tip_semi = st.text_input("4 semifinalisté 🏒", value=stary_semi, disabled=dlouhodobe_disabled)
+        tip_semi1 = st.text_input("semifinalista1 🏒", value=stary_semi, disabled=dlouhodobe_disabled)
+        tip_semi2 = st.text_input("semifinalista2 🏒", value=stary_semi, disabled=dlouhodobe_disabled)
+        tip_semi3 = st.text_input("semifinalista3 🏒", value=stary_semi, disabled=dlouhodobe_disabled)
+        tip_semi4 = st.text_input("semifinalista4 🏒", value=stary_semi, disabled=dlouhodobe_disabled)
         tip_cesi = st.text_input("Umístění českého týmu 🇨🇿", value=stary_cesi, disabled=dlouhodobe_disabled)
         tip_mvp = st.text_input("Nejužitečnější hráč (MVP) 🌟", value=stary_mvp, disabled=dlouhodobe_disabled)
         tip_goly = st.text_input("Celkový počet gólů v turnaji 🥅", value=stary_goly, disabled=dlouhodobe_disabled)
@@ -662,7 +665,10 @@ elif volba == "Celoturnajové tipy 🏆":
 
             # Uložení do struktury
             data["dlouhodobe_tipy"][current_user]["vitez"] = tip_vitez
-            data["dlouhodobe_tipy"][current_user]["semifinaliste"] = tip_semi
+            data["dlouhodobe_tipy"][current_user]["semifinalista1"] = tip_semi1
+            data["dlouhodobe_tipy"][current_user]["semifinalista2"] = tip_semi2
+            data["dlouhodobe_tipy"][current_user]["semifinalista3"] = tip_semi3
+            data["dlouhodobe_tipy"][current_user]["semifinalista4"] = tip_semi4
             data["dlouhodobe_tipy"][current_user]["cesky_tym"] = tip_cesi
             data["dlouhodobe_tipy"][current_user]["mvp"] = tip_mvp
             data["dlouhodobe_tipy"][current_user]["pocet_golu"] = tip_goly

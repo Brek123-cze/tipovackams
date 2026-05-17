@@ -547,7 +547,7 @@ elif volba == "Moje tipy (Zápasy) 📝":
         # Spojíme důvody pro uzamčení: zápas je uzamčen buď časem, nebo ručně vyhodnocením, nebo proměnnou zapas_odehran
         je_zamknuto = bool(zapas_uzamcen or ( 'zapas_odehran' in locals() and zapas_odehran ))
 
-        # Vykreslení sloupců pro zadávání tipů (nyní správně zarovnáno venku pod podmínkou)
+        # Vykreslení sloupců pro zadávání tipů
         c1, c2, c3 = st.columns([1, 1, 2])
         tip_d = c1.number_input(f"Skóre {z['domaci']}", min_value=0, value=int(stary_d), key=f"d_{z_id}", disabled=je_zamknuto)
         tip_h = c2.number_input(f"Skóre {z['hoste']}", min_value=0, value=int(stary_h), key=f"h_{z_id}", disabled=je_zamknuto)
@@ -558,34 +558,35 @@ elif volba == "Moje tipy (Zápasy) 📝":
         docasne_tipy[z_id] = {"d": tip_d, "h": tip_h}
         docasni_zolici[z_id] = zolik
         
-        # Pokud je zápas uzamčen, vypíšeme varovný text pod políčka
         if je_zamknuto:
             st.caption("🔒 Tento zápas již byl zahájen nebo vyhodnocen, tipy jsou uzamčeny.")
             
         st.write("---")
+        # 🛑 TADY KONČÍ SMYČKA PRO JEDNOTLIVÉ ZÁPASY (ODSADÍME DOLEVA)
+
+    # Tlačítko se vykreslí JEDNOU na konci formuláře pod všemi zápasy
+    ulozit_button = st.form_submit_button("Uložit zápis zápasů do tabulky 💾")
+
+    if ulozit_button:
+        with st.spinner("Ukládám tvoje tipy na Disk..."):
+            zvoleny_zolik_id = None
+            for z_id, status in docasni_zolici.items():
+                if status:
+                    zvoleny_zolik_id = z_id
+                    break
             
-            ulozit_button = st.form_submit_button("Uložit zápis zápasů do tabulky 💾")
+            for z_id, skore in docasne_tipy.items():
+                data["tipy"][current_user][z_id] = skore
+            
+            for z in ZAPASY:
+                if z["den"] == vybrany_den:
+                    data["zolici"][current_user][z["id"]] = (z["id"] == zvoleny_zolik_id)
 
-        if ulozit_button:
-            with st.spinner("Ukládám tvoje tipy na Disk..."):
-                zvoleny_zolik_id = None
-                for z_id, status in docasni_zolici.items():
-                    if status:
-                        zvoleny_zolik_id = z_id
-                        break
-                
-                for z_id, skore in docasne_tipy.items():
-                    data["tipy"][current_user][z_id] = skore
-                
-                for z in ZAPASY:
-                    if z["den"] == vybrany_den:
-                        data["zolici"][current_user][z["id"]] = (z["id"] == zvoleny_zolik_id)
-
-                uloz_do_google_sheets(data)
-                st.success("Tipy pro vybraný den uloženy do Google Tabulky!")
-                time.sleep(0.5)
-                st.rerun()
-
+            uloz_do_google_sheets(data)
+            st.success("Tipy pro vybraný den uloženy do Google Tabulky!")
+            time.sleep(0.5)
+            st.rerun()
+            
 # --- 3. ZÁLOŽKA: CELOTURNAJOVÉ TIPY ---
 elif volba == "Celoturnajové tipy 🏆":
     c_l, c_main, c_r = st.columns([1, 4, 1])

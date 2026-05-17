@@ -153,36 +153,49 @@ def nacti_vsechna_data():
 
 def uloz_do_google_sheets(aktualni_data):
     rows = []
+    
+    # 1. Ukládání reálných výsledků zápasů
     for k, v in aktualni_data["vysledky"].items():
         rows.append({"Klíč": f"vysledky_{k}", "Hodnota1": v["d"], "Hodnota2": v["h"], "Hodnota3": int(v["pp_sn"])})
         
+    # 2. Ukládání tipů hráčů a žolíků
     for hrac in HRACI:
         for z_id, v in aktualni_data["tipy"][hrac].items():
             rows.append({"Klíč": f"tip_{hrac}_z_{z_id}", "Hodnota1": v["d"], "Hodnota2": v["h"]})
         for z_id, v in aktualni_data["zolici"][hrac].items():
             rows.append({"Klíč": f"zolik_{hrac}_z_{z_id}", "Hodnota1": int(v)})
             
+        # ✨ OPRAVA CELOTURNAJOVÝCH TIPŮ: Tady se dříve ukládaly jen první dvě hodnoty!
         ct = aktualni_data["celkove_tipy"][hrac]
         rows.append({
             "Klíč": f"celkove_{hrac}", 
-            "Hodnota1": ct["mistr"], "Hodnota2": ct["semifinale"][0], "Hodnota3": ct["semifinale"][1],
-            "Hodnota4": ct["semifinale"][2], "Hodnota5": ct["semifinale"][3], "Hodnota6": ct["cesko"],
-            "Hodnota7": ct["mvp"], "Hodnota8": ct["goly"]
+            "Hodnota1": ct.get("mistr", ""), 
+            "Hodnota2": ct.get("semifinale", ["", "", "", ""])[0] if len(ct.get("semifinale", [])) > 0 else "", 
+            "Hodnota3": ct.get("semifinale", ["", "", "", ""])[1] if len(ct.get("semifinale", [])) > 1 else "", 
+            "Hodnota4": ct.get("semifinale", ["", "", "", ""])[2] if len(ct.get("semifinale", [])) > 2 else "", 
+            "Hodnota5": ct.get("semifinale", ["", "", "", ""])[3] if len(ct.get("semifinale", [])) > 3 else "", 
+            "Hodnota6": ct.get("cesko", "Základní skupina"),
+            "Hodnota7": ct.get("mvp", ""), 
+            "Hodnota8": int(ct.get("goly", 0)) if ct.get("goly") else 0
         })
         
+    # 3. ✨ OPRAVA MATICE STŘELCŮ (Kanadské bodování): 
+    # Aby Apps Script tabulky správně pobral všechny sloupce zápasů, musíme mu je poslat přesně pojmenované.
     for hrac in SOUPISKA_CR:
         r = {"Klíč": f"stats_{hrac}"}
+        # Přidáme do řádku všechny dynamické sloupce pro góly a asistence
         for col in SLOUPCE_MATICE:
-            r[col] = aktualni_data["kanadske_bodovani"].get(hrac, {}).get(col, 0)
+            hodnota = aktualni_data["kanadske_bodovani"].get(hrac, {}).get(col, 0)
+            r[col] = int(hodnota) if hodnota else 0
         rows.append(r)
         
     try:
-        # Bleskové odeslání přes POST na Google Web App bez autorizačních chyb
+        # Bleskové odeslání přes POST na Google Web App
         requests.post(URL_API, json=rows, timeout=15)
         st.cache_data.clear() # Okamžitě smaže lokální cache, aby se změna projevila všem
     except:
         st.error("Nepodařilo se navázat spojení s Google Diskem. Zkus to za chvíli.")
-
+        
 data = nacti_vsechna_data()
 
 # --- LOGIKA BODOVÁNÍ PRO HRÁČE ---

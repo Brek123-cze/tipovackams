@@ -389,9 +389,20 @@ if volba == "Hlavní přehled":
             
         st.write("---")
         st.subheader("📊 Statistiky MS v hokeji")
-        col1, col2 = st.columns(2)
-        col1.metric("Celkem gólů na MS", f"{celkove_goly_ms} 🚨")
-        col2.metric("Nejlepší Čech (G+A)", f"{nejlepsi_cesi_output} 🇨🇿")
+        
+        # Elegantní, zmenšené a responzivní zobrazení statistik, které se na mobilu neořízne
+        st.markdown(f"""
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+            <div style="flex: 1; min-width: 140px; background-color: rgba(30,61,89,0.05); padding: 12px; border-radius: 8px; border-left: 4px solid #1E3D59;">
+                <span style="font-size: 0.85rem; color: #555; display: block; margin-bottom: 4px;">Celkem gólů na MS</span>
+                <span style="font-size: 1.4rem; font-weight: bold; color: #1E3D59;">{celkove_goly_ms} <span style="font-size: 1.1rem;">🚨</span></span>
+            </div>
+            <div style="flex: 1; min-width: 180px; background-color: rgba(30,61,89,0.05); padding: 12px; border-radius: 8px; border-left: 4px solid #FFBB00;">
+                <span style="font-size: 0.85rem; color: #555; display: block; margin-bottom: 4px;">Nejlepší Čech (G+A)</span>
+                <span style="font-size: 1.15rem; font-weight: bold; color: #1E3D59; line-height: 1.2; display: block; word-break: break-word;">{nejlepsi_cesi_output} 🇨🇿</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
         
         with st.expander("📊 Kompletní tabulka kanadského bodování českého týmu"):
             df_divaci = df_statistiky.sort_values(by=["Celkem Body (G+A)", "Celkem Góly"], ascending=[False, False])

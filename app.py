@@ -621,6 +621,15 @@ elif volba == "Moje tipy (Zápasy) 📝":
                     st.rerun()
             
 # --- 3. ZÁLOŽKA: CELOTURNAJOVÉ TIPY ---
+# Načteme stav zámku od správce
+je_zamknuto_spravcem = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)
+
+# Pokud je uživatel Správce, zámek ignorujeme, aby mohl data měnit
+if current_user == "Správce 👑":
+    dlouhodobe_disabled = False
+else:
+    dlouhodobe_disabled = je_zamknuto_spravcem
+
 elif volba == "Celoturnajové tipy 🏆":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
@@ -628,18 +637,18 @@ elif volba == "Celoturnajové tipy 🏆":
         ct = data["celkove_tipy"][current_user]
         
         with st.form("celoturnajove_form"):
-            mistr = st.text_input("Kdo vyhraje zlato (Mistr světa)?", value=ct.get("mistr", ""))
+            mistr = st.text_input("Kdo vyhraje zlato (Mistr světa)?", value=ct.get("mistr", ""), disabled=dlouhodobe_disabled)
             st.write("**Čtyři semifinalisté:**")
-            sf1 = st.text_input("Tým 1", value=ct["semifinale"][0])
-            sf2 = st.text_input("Tým 2", value=ct["semifinale"][1])
-            sf3 = st.text_input("Tým 3", value=ct["semifinale"][2])
-            sf4 = st.text_input("Tým 4", value=ct["semifinale"][3])
+            sf1 = st.text_input("Tým 1", value=ct["semifinale"][0], disabled=dlouhodobe_disabled)
+            sf2 = st.text_input("Tým 2", value=ct["semifinale"][1], disabled=dlouhodobe_disabled)
+            sf3 = st.text_input("Tým 3", value=ct["semifinale"][2], disabled=dlouhodobe_disabled)
+            sf4 = st.text_input("Tým 4", value=ct["semifinale"][3], disabled=dlouhodobe_disabled)
             
             faze_list = ["Základní skupina", "Čtvrtfinále", "Semifinále", "Bronz", "Stříbro", "Zlato 🥇"]
             stary_index = faze_list.index(ct["cesko"]) if ct.get("cesko") in faze_list else 0
-            cesko = st.selectbox("Jaké fáze dosáhne český tým?", faze_list, index=stary_index)
-            mvp = st.text_input("Nejužitečnější český hráč turnaje (MVP)?", value=ct.get("mvp", ""))
-            goly = st.number_input("Celkový počet gólů v celém mistrovství?", min_value=0, value=int(ct.get("goly", 0)))
+            cesko = st.selectbox("Jaké fáze dosáhne český tým?", faze_list, index=stary_index, disabled=dlouhodobe_disabled)
+            mvp = st.text_input("Nejužitečnější český hráč turnaje (MVP)?", value=ct.get("mvp", ""), disabled=dlouhodobe_disabled)
+            goly = st.number_input("Celkový počet gólů v celém mistrovství?", min_value=0, value=int(ct.get("goly", 0)), disabled=dlouhodobe_disabled)
             
             ulozit_celkove = st.form_submit_button("Uložit celoturnajové tipy 💾")
             
@@ -677,15 +686,54 @@ elif volba == "Tipy ostatních 👀":
                     else: st.write(f"• {hrac}: *? : ?* (Utajeno)")
                 st.write("---")
         else:
+           # for hrac in HRACI:
+            #    if hrac == current_user: continue
+            #    with st.expander(f"Dlouhodobé tipy: {hrac}"):
+            #        ct = data["celkove_tipy"][hrac]
+            #        st.write(f"🥇 **Mistr:** {ct.get('mistr', '-')}")
+            #        st.write(f"🏒 **Semifinalisté:** {', '.join([x for x in ct.get('semifinale', []) if x])}")
+            #        st.write(f"🇨🇿 **Fáze Česka:** {ct.get('cesko', '-')}")
+            #        st.write(f"🎯 **Český MVP:** {ct.get('mvp', '-')}")
+            #        st.write(f"🚨 **Tip gólů:** {ct.get('goly', '-')}")
+
+           # --- NOVÝ PŘEHLED DLOUHODOBÝCH TIPŮ V TABULCE ---
+            st.write("### 📊 Kompletní přehled dlouhodobých tipů")
+            
+            # Definujeme tvoje reálné kategorie pro řádky tabulky
+            kategorie = [
+                "Celkový vítěz 🏆", 
+                "4 semifinalisté 🏒", 
+                "Umístění českého týmu 🇨🇿", 
+                "Nejužitečnější hráč (MVP) 🌟", 
+                "Celkový počet gólů v turnaji 🥅"
+            ]
+            
+            # Klíče, pod kterými máš tyto tipy uložené v data["dlouhodobe_tipy"][hrac]
+            # POZNÁMKA: Pokud máš klíče v databázi pojmenované jinak (např. 'semifinale', 'cesi'...), 
+            # přepiš texty v tomto seznamu níže tak, aby přesně odpovídaly tvým klíčům!
+            klice_kategorii = ["vitez", "semifinaliste", "cesky_tym", "mvp", "pocet_golu"]
+            
+            tabulka_data = {}
+            
+            # Projdeme všechny hokejové parťáky a poskládáme sloupce
             for hrac in HRACI:
-                if hrac == current_user: continue
-                with st.expander(f"Dlouhodobé tipy: {hrac}"):
-                    ct = data["celkove_tipy"][hrac]
-                    st.write(f"🥇 **Mistr:** {ct.get('mistr', '-')}")
-                    st.write(f"🏒 **Semifinalisté:** {', '.join([x for x in ct.get('semifinale', []) if x])}")
-                    st.write(f"🇨🇿 **Fáze Česka:** {ct.get('cesko', '-')}")
-                    st.write(f"🎯 **Český MVP:** {ct.get('mvp', '-')}")
-                    st.write(f"🚨 **Tip gólů:** {ct.get('goly', '-')}")
+                hrac_tipy = []
+                for klic in klice_kategorii:
+                    # Vytáhneme text z textboxu, pokud hráč ještě nevyplnil, ukáže se pomlčka
+                    tip = data.get("dlouhodobe_tipy", {}).get(hrac, {}).get(klic, "-")
+                    hrac_tipy.append(str(tip))
+                
+                tabulka_data[hrac] = hrac_tipy
+            
+            import pandas as pd
+            df_dlouhodobe = pd.DataFrame(tabulka_data, index=kategorie)
+            
+            # Zobrazíme pevnou přehlednou tabulku
+            st.dataframe(df_dlouhodobe, use_container_width=True)
+            
+            # Pokud je aktivní zámek, vypíšeme klukům pod tabulku info
+            if data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False):
+                st.caption("🔒 Dlouhodobé tipy byly správcem uzamčeny. Už je nelze měnit.")
 
 # --- 5. ADMIN ZÁLOŽKA: ZADÁVÁNÍ VÝSLEDKŮ ---
 elif volba == "Zadávání výsledků" and current_user == "admin":
@@ -729,6 +777,24 @@ elif volba == "Zadávání výsledků" and current_user == "admin":
                 st.success("Zápasy bezpečně synchronizovány s Google Sheets!")
                 time.sleep(0.5)
                 st.rerun()
+
+# --- ADMIN SEKCE: ZAMKNUTÍ DLOUHODOBÝCH TIPŮ ---
+if volba == "Správce 👑" and heslo_spravne:
+    st.write("### 🔒 Správa uzamčení dlouhodobých tipů")
+    
+    # Načteme aktuální stav z dat, pokud neexistuje, výchozí je False (odemčeno)
+    aktualni_zamek = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)
+    
+    zamknout_dl_tipy = st.checkbox("Uzamknout dlouhodobé tipy pro všechny hráče", value=aktualni_zamek)
+    
+    if st.button("Uložit nastavení zámku 💾"):
+        if "nastaveni" not in data:
+            data["nastaveni"] = {}
+        data["nastaveni"]["dlouhodobe_zamknuto"] = zamknout_dl_tipy
+        uloz_do_google_sheets(data)
+        st.success("Nastavení zámku bylo úspěšně uloženo!")
+        time.sleep(0.5)
+        st.rerun()
 
 # --- 6. ADMIN ZÁLOŽKA: EXCEL MATICE STATISTIK ČR ---
 elif volba == "Správa statistik ČR (Excel matice)" and current_user == "admin":

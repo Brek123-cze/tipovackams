@@ -622,45 +622,59 @@ elif volba == "Moje tipy (Zápasy) 📝":
             
 # --- 3. ZÁLOŽKA: CELOTURNAJOVÉ TIPY ---
 elif volba == "Celoturnajové tipy 🏆":
-    # Načteme stav zámku od správce
-    je_zamknuto_spravcem = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)   
+    st.title("🏆 Dlouhodobé tipy na turnaj")
+    
+    # 1. NAČTENÍ ZÁMKU Z DATABÁZE
+    je_zamknuto_spravcem = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)
 
-    # Pokud je uživatel Správce, zámek ignorujeme, aby mohl data měnit
-    if current_user == "Správce 👑":
+    # 2. KONTROLA: Pokud jsi přihlášen jako admin, pro tebe zámek NEPLATÍ (můžeš data opravovat)
+    # POZNÁMKA: Pokud se tvůj admin jmenuje v session_state "admin", nech tu "admin".
+    if current_user == "admin":
         dlouhodobe_disabled = False
     else:
         dlouhodobe_disabled = je_zamknuto_spravcem
-      
-    c_l, c_main, c_r = st.columns([1, 4, 1])
-    with c_main:
-        st.title("🏆 Celoturnajové bonusové tipy")
-        ct = data["celkove_tipy"][current_user]
+
+    # 3. UKÁZKA FORMULÁŘE (U každého textového políčka musí být na konci: disabled=dlouhodobe_disabled)
+    with st.form("dlouhodobe_tipy_form"):
+        st.write("Vyplň své dlouhodobé tipy před začátkem turnaje:")
         
-        with st.form("celoturnajove_form"):
-            mistr = st.text_input("Kdo vyhraje zlato (Mistr světa)?", value=ct.get("mistr", ""), disabled=dlouhodobe_disabled)
-            st.write("**Čtyři semifinalisté:**")
-            sf1 = st.text_input("Tým 1", value=ct["semifinale"][0], disabled=dlouhodobe_disabled)
-            sf2 = st.text_input("Tým 2", value=ct["semifinale"][1], disabled=dlouhodobe_disabled)
-            sf3 = st.text_input("Tým 3", value=ct["semifinale"][2], disabled=dlouhodobe_disabled)
-            sf4 = st.text_input("Tým 4", value=ct["semifinale"][3], disabled=dlouhodobe_disabled)
-            
-            faze_list = ["Základní skupina", "Čtvrtfinále", "Semifinále", "Bronz", "Stříbro", "Zlato 🥇"]
-            stary_index = faze_list.index(ct["cesko"]) if ct.get("cesko") in faze_list else 0
-            cesko = st.selectbox("Jaké fáze dosáhne český tým?", faze_list, index=stary_index, disabled=dlouhodobe_disabled)
-            mvp = st.text_input("Nejužitečnější český hráč turnaje (MVP)?", value=ct.get("mvp", ""), disabled=dlouhodobe_disabled)
-            goly = st.number_input("Celkový počet gólů v celém mistrovství?", min_value=0, value=int(ct.get("goly", 0)), disabled=dlouhodobe_disabled)
-            
-            ulozit_celkove = st.form_submit_button("Uložit celoturnajové tipy 💾")
-            
-        if ulozit_celkove:
-            with st.spinner("Ukládám dlouhodobé tipy..."):
-                data["celkove_tipy"][current_user] = {
-                    "mistr": mistr, "semifinale": [sf1, sf2, sf3, sf4], "cesko": cesko, "mvp": mvp, "goly": goly
-                }
-                uloz_do_google_sheets(data)
-                st.success("Uloženo do Google Tabulky!")
-                time.sleep(0.5)
-                st.rerun()
+        # Načtení starých hodnot (uprav si klíče jako 'vitez', 'semifinale' podle sebe)
+        stary_vitez = data.get("dlouhodobe_tipy", {}).get(current_user, {}).get("vitez", "")
+        stary_semi = data.get("dlouhodobe_tipy", {}).get(current_user, {}).get("semifinaliste", "")
+        stary_cesi = data.get("dlouhodobe_tipy", {}).get(current_user, {}).get("cesky_tym", "")
+        stary_mvp = data.get("dlouhodobe_tipy", {}).get(current_user, {}).get("mvp", "")
+        stary_goly = data.get("dlouhodobe_tipy", {}).get(current_user, {}).get("pocet_golu", "")
+
+        # ✨ KLÍČOVÁ OPRAVA: Do každého st.text_input doplňujeme na konec disabled=dlouhodobe_disabled
+        tip_vitez = st.text_input("Celkový vítěz 🏆", value=stary_vitez, disabled=dlouhodobe_disabled)
+        tip_semi = st.text_input("4 semifinalisté 🏒", value=stary_semi, disabled=dlouhodobe_disabled)
+        tip_cesi = st.text_input("Umístění českého týmu 🇨🇿", value=stary_cesi, disabled=dlouhodobe_disabled)
+        tip_mvp = st.text_input("Nejužitečnější hráč (MVP) 🌟", value=stary_mvp, disabled=dlouhodobe_disabled)
+        tip_goly = st.text_input("Celkový počet gólů v turnaji 🥅", value=stary_goly, disabled=dlouhodobe_disabled)
+
+        uloze_dl_button = st.form_submit_button("Uložit dlouhodobé tipy 💾")
+
+        if uloze_dl_button:
+            if "dlouhodobe_tipy" not in data:
+                data["dlouhodobe_tipy"] = {}
+            if current_user not in data["dlouhodobe_tipy"]:
+                data["dlouhodobe_tipy"][current_user] = {}
+
+            # Uložení do struktury
+            data["dlouhodobe_tipy"][current_user]["vitez"] = tip_vitez
+            data["dlouhodobe_tipy"][current_user]["semifinaliste"] = tip_semi
+            data["dlouhodobe_tipy"][current_user]["cesky_tym"] = tip_cesi
+            data["dlouhodobe_tipy"][current_user]["mvp"] = tip_mvp
+            data["dlouhodobe_tipy"][current_user]["pocet_golu"] = tip_goly
+
+            uloz_do_google_sheets(data)
+            st.success("Dlouhodobé tipy úspěšně uloženy!")
+            time.sleep(0.5)
+            st.rerun()
+
+    # Pokud je zamknuto a uživatel není admin, vypíšeme mu varování
+    if je_zamknuto_spravcem and current_user != "admin":
+        st.error("🔒 Dlouhodobé tipy již byly uzamčeny správcem turnaje a nelze je upravovat.")
 
 # --- 4. ZÁLOŽKA: TIPY OSTATNÍCH ---
 elif volba == "Tipy ostatních 👀":
@@ -702,8 +716,11 @@ elif volba == "Tipy ostatních 👀":
             # Definujeme tvoje reálné kategorie pro řádky tabulky
             kategorie = [
                 "Celkový vítěz 🏆", 
-                "4 semifinalisté 🏒", 
-                "Umístění českého týmu 🇨🇿", 
+                "semifinalista1 🏒", 
+                "semifinalista2 🏒",
+                "semifinalista3 🏒",
+                "semifinalista4 🏒",
+                "Umístění českého týmu", 
                 "Nejužitečnější hráč (MVP) 🌟", 
                 "Celkový počet gólů v turnaji 🥅"
             ]
@@ -711,7 +728,7 @@ elif volba == "Tipy ostatních 👀":
             # Klíče, pod kterými máš tyto tipy uložené v data["dlouhodobe_tipy"][hrac]
             # POZNÁMKA: Pokud máš klíče v databázi pojmenované jinak (např. 'semifinale', 'cesi'...), 
             # přepiš texty v tomto seznamu níže tak, aby přesně odpovídaly tvým klíčům!
-            klice_kategorii = ["vitez", "semifinaliste", "cesky_tym", "mvp", "pocet_golu"]
+            klice_kategorii = ["hodnota1", "hodnota2", "hodnota3", "hodnota4","hodnota5","hodnota6","hodnota7","hodnota8"]
             
             tabulka_data = {}
             

@@ -504,21 +504,33 @@ elif volba == "Moje tipy (Zápasy) 📝":
                 # --- KONTROLA ČASU ZAHÁJENÍ ZÁPASU (16 mezer) ---
                 import datetime as dt_lib
                 aktualni_cas = dt_lib.datetime.now()
-                dnes_format1 = aktualni_cas.strftime("%d.%m.")
-                dnes_format2 = f"{aktualni_cas.day}. {aktualni_cas.month}."
+                
+                # Vygenerujeme dnešní den ve dvou nejčastějších formátech
+                dnes_format1 = aktualni_cas.strftime("%d.%m.")               # "18.05."
+                dnes_format2 = f"{aktualni_cas.day}. {aktualni_cas.month}."  # "18. 5."
+                
                 zapas_uzamcen = False
-                je_dnes = (vybrany_den.replace(" ", "") == dnes_format1.replace(" ", "") or vybrany_den.replace(" ", "") == dnes_format2.replace(" ", ""))
+                
+                # Je vybraný den v roletce ten dnešní?
+                je_dnes = (vybrany_den.replace(" ", "") == dnes_format1.replace(" ", "") or 
+                           vybrany_den.replace(" ", "") == dnes_format2.replace(" ", ""))
                 
                 if je_dnes:
                     try:
+                        # Pokud je to DNES, složíme kompletní dnešní datum s časem zápasu
                         cas_obj = dt_lib.datetime.strptime(z["datum"].strip(), "%H:%M")
                         cas_zapasu = aktualni_cas.replace(hour=cas_obj.hour, minute=cas_obj.minute, second=0, microsecond=0)
+                        
+                        # Zápas zamkneme pouze v případě, že reálný čas už překročil čas zápasu
                         zapas_uzamcen = aktualni_cas > cas_zapasu
                     except:
                         zapas_uzamcen = False
                 else:
+                    # Pokud se prohlíží jiný den než dnešek, čas neřešíme!
+                    # Zápas v budoucí dny zůstane VŽDY odemčený.
                     zapas_uzamcen = False
                     
+                # Pokud jsi zápas už označil jako vyhodnocený v adminu, zamkneme ho taky (minulost)
                 if data["vysledky"].get(str(z["id"]), {}).get("vyhodnoceno", False):
                     zapas_uzamcen = True
                     

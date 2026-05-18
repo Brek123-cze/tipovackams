@@ -118,8 +118,7 @@ def fetch_data_from_api(url):
     except:
         pass
     return []
-    
-@st.cache_data(ttl=300)
+
 def nacti_vsechna_data():
     vysledky = {}
     tipy = {h: {} for h in HRACI}
@@ -248,7 +247,6 @@ def uloz_do_google_sheets(aktualni_data):
         
     try:
         requests.post(URL_API, json=rows, timeout=15)
-        st.cache_data.clear()
     except:
         st.error("Nepodařilo se navázat spojení s Google Diskem. Zkus to za chvíli.")
         
@@ -411,31 +409,18 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# menu_options = ["Žebříček hráčů 🏒", "Moje tipy (Zápasy) 📝", "Celoturnajové tipy 🏆", "Tipy ostatních 👀"]
+menu_options = ["Žebříček hráčů 🏆", "Moje tipy (Zápasy) 📝", "Celoturnajové tipy 🏆", "Tipy ostatních 👀"]
 if current_user == "admin":
-    seznam_zalozek = [
-        "Žebříček hráčů 🏒", 
-        "Moje tipy (Zápasy) 📝", 
-        "Správa nastavení a zámků ⚙️", 
-        "Správa statistik ČR (Excel matice)"
-    ]
-else:
-    seznam_zalozek = [
-        "Žebříček hráčů 🏒", 
-        "Moje tipy (Zápasy) 📝", 
-        "Celoturnajové tipy 🏆",
-        "Tipy ostatních 👀"
-    ]
+    menu_options.extend(["Zadávání výsledků", "Správa statistik ČR (Excel matice)"])
 
-# ✨ OPRAVA: Použijeme "seznam_zalozek" namísto "menu_options"
-volba = st.sidebar.radio("Navigace aplikace:", seznam_zalozek)
+volba = st.sidebar.radio("Navigace aplikace:", menu_options)
 
 if st.sidebar.button("Odhlásit se 🚪"):
     del st.session_state["uzivatel"]
     st.rerun()
 
 # --- 1. ZÁLOŽKA: ŽEBŘÍČEK ---
-if volba == "Žebříček hráčů 🏒":
+if volba == "Žebříček hráčů 🏆":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
         st.title("🏆 Průběžný žebříček tipovačky")
@@ -490,49 +475,8 @@ if volba == "Žebříček hráčů 🏒":
             
         st.info(f"🚨 **Celkový počet gólů vstřelených na celém šampionátu:** {celkove_goly_ms} gólů")
         st.success(f"🌟 **Nejlepší střelec / lídr bodování ČR:** {nejlepsi_cesi_output}")
-               
-            
-        # --- NOVÁ DYNAMICKÁ TABULKA MVP S AKTUÁLNÍMI STATISTIKAMI ---
-        st.write("### 🏒 Jak si vedou vaši favorité na nejužitečnějšího hráče?")
-        
-        mvp_radky = []
-        for hrac in HRACI:
-            # Načteme dlouhodobý tip na MVP od konkrétního tipujícího
-            natipovane_mvp = data.get("celkove_tipy", {}).get(hrac, {}).get("mvp", "-").strip()
-            
-            # Pokusíme se najít tohoto zapsaného hráče v naší matici statistik
-            stats_hledaneho_hrace = "-"
-            if natipovane_mvp != "-":
-                # Prohledáme soupisku, jestli zadaný text sedí (např. obsahuje příjmení)
-                nalezeny_hrac_na_soupisce = None
-                for c_hrac in SOUPISKA_CR:
-                    if c_hrac.lower() in natipovane_mvp.lower() or natipovane_mvp.lower() in c_hrac.lower():
-                        nalezeny_hrac_na_soupisce = c_hrac
-                        break
-                
-                # Pokud jsme hráče našli, vytáhneme z df_statistiky jeho reálná čísla
-                if nalezeny_hrac_na_soupisce and not df_statistiky.empty:
-                    hrac_row = df_statistiky[df_statistiky["Hráč"] == nalezeny_hrac_na_soupisce]
-                    if not hrac_row.empty:
-                        goly = int(hrac_row.iloc[0]["Celkem Góly"])
-                        asistence = int(hrac_row.iloc[0]["Celkem Asistence"])
-                        body = int(hrac_row.iloc[0]["Celkem Body (G+A)"])
-                        stats_hledaneho_hrace = f"⭐ {goly} + {asistence} = {body} b."
-                    else:
-                        stats_hledaneho_hrace = "0 + 0 = 0 b."
-                else:
-                    stats_hledaneho_hrace = "0 + 0 = 0 b. (mimo soupisku ČR)"
-            
-            mvp_radky.append({
-                "Tipující parťák": hrac,
-                "Jeho celkový tip na MVP": natipovane_mvp,
-                "Aktuální bilance v turnaji (G+A=B)": stats_hledaneho_hrace
-            })
-            
-        df_mvp_srovnani = pd.DataFrame(mvp_radky)
-        st.dataframe(df_mvp_srovnani, use_container_width=True, hide_index=True)
 
-# --- 2. ZÁLOŽKA: MOJE TIPY (ZÁPASY) ---
+# --- 2. ZÁLOŽKA: TIPY (ZÁPASY) ---
 elif volba == "Moje tipy (Zápasy) 📝":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
@@ -552,49 +496,41 @@ elif volba == "Moje tipy (Zápasy) 📝":
             for z in ZAPASY:
                 if z["den"] != vybrany_den: continue
                 z_id = z["id"]
-                
                 zapas_odehran = z_id in data["vysledky"]
                 st.write(f"**{z['datum']} | {z['domaci']} vs. {z['hoste']}**")
                 stary_d = data["tipy"][current_user].get(z_id, {}).get("d", 0)
                 stary_h = data["tipy"][current_user].get(z_id, {}).get("h", 0)
                 
-                # --- ⏱️ NEPRŮSTŘELNÁ KONTROLA ČESKÉHO ČASU ---
+                # --- KONTROLA ČASU ZAHÁJENÍ ZÁPASU (16 mezer) ---
                 import datetime as dt_lib
+                aktualni_cas = dt_lib.datetime.now()
                 
-                # Získáme UTC čas ze serveru a posuneme ho o +2 hodiny na český letní čas (CEST)
-                aktualni_cas = dt_lib.datetime.utcnow() + dt_lib.timedelta(hours=2)
-                
-                # Vygenerujeme dnešní den bez nul pro spolehlivé hledání (např. "18.5.")
-                dnes_cisty = f"{aktualni_cas.day}.{aktualni_cas.month}."
-                vybrany_den_cisty = vybrany_den.replace(" ", "")
+                # Vygenerujeme dnešní den ve dvou nejčastějších formátech
+                dnes_format1 = aktualni_cas.strftime("%d.%m.")               # "18.05."
+                dnes_format2 = f"{aktualni_cas.day}. {aktualni_cas.month}."  # "18. 5."
                 
                 zapas_uzamcen = False
-                # Patří vybraný den z roletky dnešku?
-                je_dnes = dnes_cisty in vybrany_den_cisty
+                
+                # Je vybraný den v roletce ten dnešní?
+                je_dnes = (vybrany_den.replace(" ", "") == dnes_format1.replace(" ", "") or 
+                           vybrany_den.replace(" ", "") == dnes_format2.replace(" ", ""))
                 
                 if je_dnes:
                     try:
-                        # Načteme čas zápasu (např. "16:20")
+                        # Pokud je to DNES, složíme kompletní dnešní datum s časem zápasu
                         cas_obj = dt_lib.datetime.strptime(z["datum"].strip(), "%H:%M")
-                        # Složíme kompletní dnešní datum s časem zápasu
                         cas_zapasu = aktualni_cas.replace(hour=cas_obj.hour, minute=cas_obj.minute, second=0, microsecond=0)
                         
-                        # Zamkneme, pokud už český čas překročil začátek zápasu
+                        # Zápas zamkneme pouze v případě, že reálný čas už překročil čas zápasu
                         zapas_uzamcen = aktualni_cas > cas_zapasu
                     except:
                         zapas_uzamcen = False
                 else:
-                    # Pokud se prohlíží dny v minulosti, zamkneme je taky automaticky
-                    try:
-                        # Pokusíme se vytáhnout první číslo z textu dne (např. 15 z "15. 5. (Pátek)")
-                        den_zapasu = int(vybrany_den.split(".")[0].strip())
-                        # Pokud je den v roletce menší než dnešní den v ČR, zápas je starý a zamkneme ho
-                        if den_zapasu < aktualni_cas.day:
-                            zapas_uzamcen = True
-                    except:
-                        pass
+                    # Pokud se prohlíží jiný den než dnešek, čas neřešíme!
+                    # Zápas v budoucí dny zůstane VŽDY odemčený.
+                    zapas_uzamcen = False
                     
-                # Ruční zámek z administrace (pokud je zápas vyhodnocen)
+                # Pokud jsi zápas už označil jako vyhodnocený v adminu, zamkneme ho taky (minulost)
                 if data["vysledky"].get(str(z["id"]), {}).get("vyhodnoceno", False):
                     zapas_uzamcen = True
                     
@@ -609,7 +545,7 @@ elif volba == "Moje tipy (Zápasy) 📝":
                 docasne_tipy[z_id] = {"d": tip_d, "h": tip_h}
                 docasni_zolici[z_id] = zolik
                 if je_zamknuto:
-                    st.caption("🔒 Tento zápas již byl zahájen, odehrán nebo patří minulosti. Tipy jsou uzamčeny.")
+                    st.caption("🔒 Tento zápas již byl zahájen nebo vyhodnocen, tipy jsou uzamčeny.")
                 st.write("---")
                 
             ulozit_button = st.form_submit_button("Uložit zápis zápasů do tabulky 💾")
@@ -630,41 +566,6 @@ elif volba == "Moje tipy (Zápasy) 📝":
                 st.success("Tipy pro vybraný den uloženy do Google Tabulky!")
                 time.sleep(0.5)
                 st.rerun()
-
-        # --- DYNAMICKÁ TABULKA MVP S AKTUÁLNÍMI STATISTIKAMI ---
-        st.write("### 🏒 Jak si vedou vaši favorité na nejužitečnějšího hráče (MVP)?")
-        
-        mvp_radky = []
-        for hrac in HRACI:
-            natipovane_mvp = data.get("celkove_tipy", {}).get(hrac, {}).get("mvp", "-").strip()
-            stats_hledaneho_hrace = "-"
-            if natipovane_mvp != "-":
-                nalezeny_hrac_na_soupisce = None
-                for c_hrac in SOUPISKA_CR:
-                    if c_hrac.lower() in natipovane_mvp.lower() or natipovane_mvp.lower() in c_hrac.lower():
-                        nalezeny_hrac_na_soupisce = c_hrac
-                        break
-                
-                if nalezeny_hrac_na_soupisce and not df_statistiky.empty:
-                    hrac_row = df_statistiky[df_statistiky["Hráč"] == nalezeny_hrac_na_soupisce]
-                    if not hrac_row.empty:
-                        goly = int(hrac_row.iloc[0]["Celkem Góly"])
-                        asistence = int(hrac_row.iloc[0]["Celkem Asistence"])
-                        body = int(hrac_row.iloc[0]["Celkem Body (G+A)"])
-                        stats_hledaneho_hrace = f"⭐ {goly} + {asistence} = {body} b."
-                    else:
-                        stats_hledaneho_hrace = "0 + 0 = 0 b."
-                else:
-                    stats_hledaneho_hrace = "0 + 0 = 0 b. (mimo soupisku ČR)"
-            
-            mvp_radky.append({
-                "Tipující parťák": hrac,
-                "Jeho celkový tip na MVP": natipovane_mvp,
-                "Aktuální bilance v turnaji (G+A=B)": stats_hledaneho_hrace
-            })
-            
-        df_mvp_srovnani = pd.DataFrame(mvp_radky)
-        st.dataframe(df_mvp_srovnani, use_container_width=True, hide_index=True)
 
 # --- 3. ZÁLOŽKA: CELOTURNAJOVÉ TIPY ---
 elif volba == "Celoturnajové tipy 🏆":
@@ -787,41 +688,59 @@ elif volba == "Tipy ostatních 👀":
             if data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False):
                 st.caption("🔒 Dlouhodobé tipy byly správcem kompletně uzamčeny.")
 
-# --- 5. ADMIN ZÁLOŽKA: SPRÁVA NASTAVENÍ A ZÁMKŮ ---
-elif volba == "Správa nastavení a zámků ⚙️" and current_user == "admin":
-    st.title("⚙️ Administrace: Nastavení a uzamykání tipů")
-    st.write("Zde můžeš manuálně a globálně uzamknout možnost tipování.")
-    
-    # Načtení aktuálního stavu z databáze (pokud klíče neexistují, výchozí je False)
-    stary_zamknuto_zapasu = data.get("nastaveni", {}).get("zapas_zamknuto_manual", False)
-    stary_zamknuto_celkovych = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)
-    
-    with st.form("form_nastaveni_zamku"):
-        st.subheader("🔒 Nastavení zámků")
+# --- 5. ADMIN ZÁLOŽKA: ZADÁVÁNÍ VÝSLEDKŮ ---
+elif volba == "Zadávání výsledků" and current_user == "admin":
+    c_l, c_main, c_r = st.columns([1, 4, 1])
+    with c_main:
+        st.title("👑 Administrace: Zadávání reálných výsledků")
+        v_den = st.selectbox("Vyber den zápasů:", DNY)
         
-        zamknout_zapasy = st.checkbox(
-            "ÚPLNÉ UZAMČENÍ ZÁPASŮ (Vypne možnost tipovat jakýkoliv zápas bez ohledu na čas)", 
-            value=bool(stary_zamknuto_zapasu)
-        )
-        
-        zamknout_celkove = st.checkbox(
-            "UZAMČENÍ CELOTURNAJOVÝCH TIPŮ (Vítěz, střelec, MVP, umístění ČR)", 
-            value=bool(stary_zamknuto_celkovych)
-        )
-        
-        ulozit_zamky = st.form_submit_button("Uložit nastavení zámků do tabulky 💾")
-        
-    if ulozit_zamky:
-        with st.spinner("Ukládám nastavení na Disk..."):
-            # Ujistíme se, že sekce nastavení v datech existuje
-            if "nastaveni" not in data:
-                data["nastaveni"] = {}
-                
-            data["nastaveni"]["zapas_zamknuto_manual"] = zamknout_zapasy
-            data["nastaveni"]["dlouhodobe_zamknuto"] = zamknout_celkove
+        with st.form("admin_vysledky_form"):
+            st.write(f"### Reálné zápasy pro den: {v_den}")
+            docasne_vysledky = {}
             
+            for z in ZAPASY:
+                if z["den"] != v_den: continue
+                z_id = z["id"]
+                st.write(f"**{z['domaci']} vs. {z['hoste']}**")
+                stary_d = data["vysledky"].get(z_id, {}).get("d", 0)
+                stary_h = data["vysledky"].get(z_id, {}).get("h", 0)
+                stare_pp = data["vysledky"].get(z_id, {}).get("pp_sn", False)
+                
+                c1, c2, c3 = st.columns([1, 1, 2])
+                r_d = c1.number_input("Skóre Domácí", min_value=0, value=int(stary_d), key=f"r_d_{z_id}")
+                r_h = c2.number_input("Skóre Hosté", min_value=0, value=int(stary_h), key=f"r_h_{z_id}")
+                pp_sn = c3.checkbox("Prodloužení / Nájezdy (PP/SN)", value=stare_pp, key=f"pp_{z_id}")
+                odehrano = c3.checkbox("Odehráno / Vyhodnotit", value=(z_id in data["vysledky"]), key=f"o_{z_id}")
+                
+                docasne_vysledky[z_id] = {"d": r_d, "h": r_h, "pp_sn": pp_sn, "aktivni": odehrano}
+                st.write("---")
+                
+            admin_ulozit_button = st.form_submit_button("Uložit zápasy a přepočítat celou aplikaci 🔄")
+            
+        if admin_ulozit_button:
+            with st.spinner("Ukládám výsledky..."):
+                for z_id, v in docasne_vysledky.items():
+                    if v["aktivni"]:
+                        data["vysledky"][z_id] = {"d": v["d"], "h": v["h"], "pp_sn": v["pp_sn"], "vyhodnoceno": True}
+                    else:
+                        if z_id in data["vysledky"]: del data["vysledky"][z_id]
+                uloz_do_google_sheets(data)
+                st.success("Zápasy uloženy a přepočítány!")
+                time.sleep(0.5)
+                st.rerun()
+
+        st.write("## 🔒 Správa uzamčení dlouhodobých tipů")
+        aktualni_zamek = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)
+        
+        with st.form("admin_zamek_form"):
+            zamknout_dl_tipy = st.checkbox("Uzamknout dlouhodobé tipy pro všechny hráče", value=aktualni_zamek)
+            tlacitko_zamku = st.form_submit_button("Uložit nastavení zámku 💾")
+            
+        if tlacitko_zamku:
+            data["nastaveni"]["dlouhodobe_zamknuto"] = zamknout_dl_tipy
             uloz_do_google_sheets(data)
-            st.success("Nastavení zámků bylo úspěšně uloženo a aplikováno!")
+            st.success("Nastavení zámku dlouhodobých tipů uloženo!")
             time.sleep(0.5)
             st.rerun()
 

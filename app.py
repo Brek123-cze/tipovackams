@@ -118,7 +118,8 @@ def fetch_data_from_api(url):
     except:
         pass
     return []
-
+    
+@st.cache_data(ttl=300)
 def nacti_vsechna_data():
     vysledky = {}
     tipy = {h: {} for h in HRACI}
@@ -247,6 +248,7 @@ def uloz_do_google_sheets(aktualni_data):
         
     try:
         requests.post(URL_API, json=rows, timeout=15)
+        st.cache_data.clear()
     except:
         st.error("Nepodařilo se navázat spojení s Google Diskem. Zkus to za chvíli.")
         

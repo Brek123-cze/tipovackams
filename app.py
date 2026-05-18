@@ -411,11 +411,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-menu_options = ["Žebříček hráčů 🏒", "Moje tipy (Zápasy) 📝", "Celoturnajové tipy 🏆", "Tipy ostatních 👀"]
+# menu_options = ["Žebříček hráčů 🏒", "Moje tipy (Zápasy) 📝", "Celoturnajové tipy 🏆", "Tipy ostatních 👀"]
 if current_user == "admin":
     seznam_zalozek = [
         "Žebříček hráčů 🏒", 
-        "Zadávání výsledků zápasů 👑", 
+        "Moje tipy (Zápasy) 📝", 
         "Správa nastavení a zámků ⚙️", 
         "Správa statistik ČR (Excel matice)"
     ]
@@ -423,7 +423,8 @@ else:
     seznam_zalozek = [
         "Žebříček hráčů 🏒", 
         "Moje tipy (Zápasy) 📝", 
-        "Celoturnajové tipy 🏆"
+        "Celoturnajové tipy 🏆",
+        "Tipy ostatních 👀"
     ]
 
 # ✨ OPRAVA: Použijeme "seznam_zalozek" namísto "menu_options"
@@ -434,7 +435,7 @@ if st.sidebar.button("Odhlásit se 🚪"):
     st.rerun()
 
 # --- 1. ZÁLOŽKA: ŽEBŘÍČEK ---
-if volba == "Žebříček hráčů 🏆":
+if volba == "Žebříček hráčů 🏒":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
         st.title("🏆 Průběžný žebříček tipovačky")

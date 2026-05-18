@@ -478,7 +478,7 @@ if volba == "Žebříček hráčů 🏆":
                
             
         # --- NOVÁ DYNAMICKÁ TABULKA MVP S AKTUÁLNÍMI STATISTIKAMI ---
-        st.write("### 🏒 Jak si vedou vaši favorité na nejužitečnějšího hráče (MVP)?")
+        st.write("### 🏒 Jak si vedou vaši favorité na nejužitečnějšího hráče?")
         
         mvp_radky = []
         for hrac in HRACI:

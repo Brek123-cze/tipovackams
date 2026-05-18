@@ -475,8 +475,37 @@ if volba == "Žebříček hráčů 🏆":
             
         st.info(f"🚨 **Celkový počet gólů vstřelených na celém šampionátu:** {celkove_goly_ms} gólů")
         st.success(f"🌟 **Nejlepší střelec / lídr bodování ČR:** {nejlepsi_cesi_output}")
+        
+        # --- NOVINKA: Kdo z tipujících vsadil na nejlepší české hráče? ---
+        st.write("### 🎯 Kdo tyto lídry natipoval jako své celkové MVP?")
+        
+        # Vytáhneme jména aktuálních lídrů z textového výstupu
+        # (Odstraníme závorky s body, abychom měli čistá jména pro porovnání)
+        aktualni_lidri = []
+        if nejlepsi_cesi_output != "Nikdo":
+            for kousek in nejlepsi_cesi_output.split(", "):
+                jmeno_lidra = kousek.split(" (")[0].strip()
+                aktualni_lidri.append(jmeno_lidra)
+        
+        # Poskládáme přehled, kdo koho reálně z party tipoval
+        mvp_radky = []
+        for hrac in HRACI:
+            # Načteme, koho má daný hráč uloženého pod klíčem "mvp"
+            natipovane_mvp = data.get("celkove_tipy", {}).get(hrac, {}).get("mvp", "-").strip()
+            
+            # Pokud se tip shoduje s jedním z aktuálních lídrů, dáme k tomu fajfku a zvýrazníme ho
+            je_trefa = "✅" if any(lidr in natipovane_mvp for lidr in aktualni_lidri) and natipovane_mvp != "-" else "❌"
+            
+            mvp_radky.append({
+                "Tipující hráč": hrac,
+                "Jeho dlouhodobý tip na MVP": natipovane_mvp,
+                "Aktuální trefa?": je_trefa
+            })
+            
+        df_mvp_srovnani = pd.DataFrame(mvp_radky)
+        st.dataframe(df_mvp_srovnani, use_container_width=True, hide_index=True)
 
-# --- 2. ZÁLOŽKA: TIPY (ZÁPASY) ---
+# --- 2. ZÁLOŽKA: MOJE TIPY (ZÁPASY) ---
 elif volba == "Moje tipy (Zápasy) 📝":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
@@ -496,41 +525,35 @@ elif volba == "Moje tipy (Zápasy) 📝":
             for z in ZAPASY:
                 if z["den"] != vybrany_den: continue
                 z_id = z["id"]
+                
+                # ✨ OPRAVA POŘADÍ: Zjištění odehraného zápasu musí být jako první!
                 zapas_odehran = z_id in data["vysledky"]
+                
                 st.write(f"**{z['datum']} | {z['domaci']} vs. {z['hoste']}**")
                 stary_d = data["tipy"][current_user].get(z_id, {}).get("d", 0)
                 stary_h = data["tipy"][current_user].get(z_id, {}).get("h", 0)
                 
-                # --- KONTROLA ČASU ZAHÁJENÍ ZÁPASU (16 mezer) ---
+                # --- NEPRŮSTŘELNÁ KONTROLA ČASU ZAHÁJENÍ ZÁPASU ---
                 import datetime as dt_lib
                 aktualni_cas = dt_lib.datetime.now()
-                
-                # Vygenerujeme dnešní den ve dvou nejčastějších formátech
-                dnes_format1 = aktualni_cas.strftime("%d.%m.")               # "18.05."
-                dnes_format2 = f"{aktualni_cas.day}. {aktualni_cas.month}."  # "18. 5."
+                dnes_format1 = aktualni_cas.strftime("%d.%m.")
+                dnes_format2 = f"{aktualni_cas.day}. {aktualni_cas.month}."
                 
                 zapas_uzamcen = False
-                
-                # Je vybraný den v roletce ten dnešní?
                 je_dnes = (vybrany_den.replace(" ", "") == dnes_format1.replace(" ", "") or 
                            vybrany_den.replace(" ", "") == dnes_format2.replace(" ", ""))
                 
                 if je_dnes:
                     try:
-                        # Pokud je to DNES, složíme kompletní dnešní datum s časem zápasu
                         cas_obj = dt_lib.datetime.strptime(z["datum"].strip(), "%H:%M")
                         cas_zapasu = aktualni_cas.replace(hour=cas_obj.hour, minute=cas_obj.minute, second=0, microsecond=0)
-                        
-                        # Zápas zamkneme pouze v případě, že reálný čas už překročil čas zápasu
                         zapas_uzamcen = aktualni_cas > cas_zapasu
                     except:
                         zapas_uzamcen = False
                 else:
-                    # Pokud se prohlíží jiný den než dnešek, čas neřešíme!
-                    # Zápas v budoucí dny zůstane VŽDY odemčený.
                     zapas_uzamcen = False
                     
-                # Pokud jsi zápas už označil jako vyhodnocený v adminu, zamkneme ho taky (minulost)
+                # Kontrola administrativního vyhodnocení
                 if data["vysledky"].get(str(z["id"]), {}).get("vyhodnoceno", False):
                     zapas_uzamcen = True
                     

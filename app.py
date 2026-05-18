@@ -411,11 +411,23 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-menu_options = ["Žebříček hráčů 🏆", "Moje tipy (Zápasy) 📝", "Celoturnajové tipy 🏆", "Tipy ostatních 👀"]
+# menu_options = ["Žebříček hráčů 🏆", "Moje tipy (Zápasy) 📝", "Celoturnajové tipy 🏆", "Tipy ostatních 👀"]
 if current_user == "admin":
-    menu_options.extend(["Zadávání výsledků", "Správa statistik ČR (Excel matice)"])
+    seznam_zalozek = [
+        "Žebříček hráčů 🏒", 
+        "Zadávání výsledků zápasů 👑", 
+        "Správa nastavení a zámků ⚙️", 
+        "Správa statistik ČR (Excel matice)"
+    ]
+else:
+    seznam_zalozek = [
+        "Žebříček hráčů 🏒", 
+        "Moje tipy (Zápasy) 📝", 
+        "Celoturnajové tipy 🏆"
+    ]
 
-volba = st.sidebar.radio("Navigace aplikace:", menu_options)
+# ✨ OPRAVA: Použijeme "seznam_zalozek" namísto "menu_options"
+volba = st.sidebar.radio("Navigace aplikace:", seznam_zalozek)
 
 if st.sidebar.button("Odhlásit se 🚪"):
     del st.session_state["uzivatel"]

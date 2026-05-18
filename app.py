@@ -411,7 +411,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# menu_options = ["Žebříček hráčů 🏆", "Moje tipy (Zápasy) 📝", "Celoturnajové tipy 🏆", "Tipy ostatních 👀"]
+menu_options = ["Žebříček hráčů 🏒", "Moje tipy (Zápasy) 📝", "Celoturnajové tipy 🏆", "Tipy ostatních 👀"]
 if current_user == "admin":
     seznam_zalozek = [
         "Žebříček hráčů 🏒", 
@@ -786,59 +786,41 @@ elif volba == "Tipy ostatních 👀":
             if data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False):
                 st.caption("🔒 Dlouhodobé tipy byly správcem kompletně uzamčeny.")
 
-# --- 5. ADMIN ZÁLOŽKA: ZADÁVÁNÍ VÝSLEDKŮ ---
-elif volba == "Zadávání výsledků" and current_user == "admin":
-    c_l, c_main, c_r = st.columns([1, 4, 1])
-    with c_main:
-        st.title("👑 Administrace: Zadávání reálných výsledků")
-        v_den = st.selectbox("Vyber den zápasů:", DNY)
+# --- 5. ADMIN ZÁLOŽKA: SPRÁVA NASTAVENÍ A ZÁMKŮ ---
+elif volba == "Správa nastavení a zámků ⚙️" and current_user == "admin":
+    st.title("⚙️ Administrace: Nastavení a uzamykání tipů")
+    st.write("Zde můžeš manuálně a globálně uzamknout možnost tipování.")
+    
+    # Načtení aktuálního stavu z databáze (pokud klíče neexistují, výchozí je False)
+    stary_zamknuto_zapasu = data.get("nastaveni", {}).get("zapas_zamknuto_manual", False)
+    stary_zamknuto_celkovych = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)
+    
+    with st.form("form_nastaveni_zamku"):
+        st.subheader("🔒 Nastavení zámků")
         
-        with st.form("admin_vysledky_form"):
-            st.write(f"### Reálné zápasy pro den: {v_den}")
-            docasne_vysledky = {}
-            
-            for z in ZAPASY:
-                if z["den"] != v_den: continue
-                z_id = z["id"]
-                st.write(f"**{z['domaci']} vs. {z['hoste']}**")
-                stary_d = data["vysledky"].get(z_id, {}).get("d", 0)
-                stary_h = data["vysledky"].get(z_id, {}).get("h", 0)
-                stare_pp = data["vysledky"].get(z_id, {}).get("pp_sn", False)
-                
-                c1, c2, c3 = st.columns([1, 1, 2])
-                r_d = c1.number_input("Skóre Domácí", min_value=0, value=int(stary_d), key=f"r_d_{z_id}")
-                r_h = c2.number_input("Skóre Hosté", min_value=0, value=int(stary_h), key=f"r_h_{z_id}")
-                pp_sn = c3.checkbox("Prodloužení / Nájezdy (PP/SN)", value=stare_pp, key=f"pp_{z_id}")
-                odehrano = c3.checkbox("Odehráno / Vyhodnotit", value=(z_id in data["vysledky"]), key=f"o_{z_id}")
-                
-                docasne_vysledky[z_id] = {"d": r_d, "h": r_h, "pp_sn": pp_sn, "aktivni": odehrano}
-                st.write("---")
-                
-            admin_ulozit_button = st.form_submit_button("Uložit zápasy a přepočítat celou aplikaci 🔄")
-            
-        if admin_ulozit_button:
-            with st.spinner("Ukládám výsledky..."):
-                for z_id, v in docasne_vysledky.items():
-                    if v["aktivni"]:
-                        data["vysledky"][z_id] = {"d": v["d"], "h": v["h"], "pp_sn": v["pp_sn"], "vyhodnoceno": True}
-                    else:
-                        if z_id in data["vysledky"]: del data["vysledky"][z_id]
-                uloz_do_google_sheets(data)
-                st.success("Zápasy uloženy a přepočítány!")
-                time.sleep(0.5)
-                st.rerun()
-
-        st.write("## 🔒 Správa uzamčení dlouhodobých tipů")
-        aktualni_zamek = data.get("nastaveni", {}).get("dlouhodobe_zamknuto", False)
+        zamknout_zapasy = st.checkbox(
+            "ÚPLNÉ UZAMČENÍ ZÁPASŮ (Vypne možnost tipovat jakýkoliv zápas bez ohledu na čas)", 
+            value=bool(stary_zamknuto_zapasu)
+        )
         
-        with st.form("admin_zamek_form"):
-            zamknout_dl_tipy = st.checkbox("Uzamknout dlouhodobé tipy pro všechny hráče", value=aktualni_zamek)
-            tlacitko_zamku = st.form_submit_button("Uložit nastavení zámku 💾")
+        zamknout_celkove = st.checkbox(
+            "UZAMČENÍ CELOTURNAJOVÝCH TIPŮ (Vítěz, střelec, MVP, umístění ČR)", 
+            value=bool(stary_zamknuto_celkovych)
+        )
+        
+        ulozit_zamky = st.form_submit_button("Uložit nastavení zámků do tabulky 💾")
+        
+    if ulozit_zamky:
+        with st.spinner("Ukládám nastavení na Disk..."):
+            # Ujistíme se, že sekce nastavení v datech existuje
+            if "nastaveni" not in data:
+                data["nastaveni"] = {}
+                
+            data["nastaveni"]["zapas_zamknuto_manual"] = zamknout_zapasy
+            data["nastaveni"]["dlouhodobe_zamknuto"] = zamknout_celkove
             
-        if tlacitko_zamku:
-            data["nastaveni"]["dlouhodobe_zamknuto"] = zamknout_dl_tipy
             uloz_do_google_sheets(data)
-            st.success("Nastavení zámku dlouhodobých tipů uloženo!")
+            st.success("Nastavení zámků bylo úspěšně uloženo a aplikováno!")
             time.sleep(0.5)
             st.rerun()
 

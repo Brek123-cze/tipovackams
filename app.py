@@ -724,6 +724,7 @@ elif volba == "Celoturnajové tipy 🏆":
             st.error("🔒 Dlouhodobé tipy byly uzamčeny správcem, hodnoty již nelze upravovat.")
 
 # --- 4. ZÁLOŽKA: TIPY OSTATNÍCH ---
+# --- 4. ZÁLOŽKA: TIPY OSTATNÍCH ---
 elif volba == "Tipy ostatních 👀":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
@@ -732,25 +733,69 @@ elif volba == "Tipy ostatních 👀":
         
         if kat == "Denní zápasy":
             v_den = st.selectbox("Vyber hrací den:", DNY, key="view_den")
+            
             for z in ZAPASY:
                 if z["den"] != v_den: continue
                 z_id = z["id"]
-                st.write(f"**{z['domaci']} vs. {z['hoste']}** ({z['datum']})")
+                
+                # Výrazný nadpis zápasu
+                st.markdown(f"#### 🏒 {z['domaci']} vs. {z['hoste']} ({z['datum']})")
+                
+                # Pokud je zápas už odehraný, ukážeme reálný výsledek
                 odehran = z_id in data["vysledky"]
                 if odehran:
                     pripona = " (PP/SN)" if data["vysledky"][z_id].get("pp_sn", False) else ""
-                    st.write(f"🏁 *Výsledek:* `{data['vysledky'][z_id]['d']} : {data['vysledky'][z_id]['h']}`**{pripona}**")
+                    st.success(f"🏁 **Konečný výsledek:** `{data['vysledky'][z_id]['d']} : {data['vysledky'][z_id]['h']}`{pripona}")
+                
+                # --- KONTROLA ČASU PRO UTAJENÍ TIPŮ ---
+                import datetime as dt_lib
+                aktualni_cas = dt_lib.datetime.utcnow() + dt_lib.timedelta(hours=2)
+                dnes_cisty = f"{aktualni_cas.day}.{aktualni_cas.month}."
+                vybrany_den_cisty = v_den.replace(" ", "")
+                
+                zapas_zahajen_casove = False
+                if dnes_cisty in vybrany_den_cisty:
+                    try:
+                        cas_obj = dt_lib.datetime.strptime(z["datum"].strip(), "%H:%M")
+                        cas_zapasu = aktualni_cas.replace(hour=cas_obj.hour, minute=cas_obj.minute, second=0, microsecond=0)
+                        zapas_zahajen_casove = aktualni_cas > cas_zapasu
+                    except:
+                        zapas_zahajen_casove = False
+                elif int(v_den.split(".")[0].strip()) < aktualni_cas.day:
+                    zapas_zahajen_casove = True
+                
+                # Viditelnost tipů: pokud zápas začal, nebo je odehraný, odtajníme ho
+                odtajneno = bool(zapas_zahajen_casove or odehran)
+                
+                # Poskládáme data pro tabulku zápasu
+                radky_tabulky = []
                 for hrac in HRACI:
-                    if hrac == current_user: continue
+                    # Načteme tip
                     t = data["tipy"][hrac].get(z_id, {"d": "-", "h": "-"})
-                    zol = " 🔥" if data["zolici"][hrac].get(z_id, False) else ""
-                    if odehran:
-                        st.write(f"• {hrac}: **{t['d']} : {t['h']}**{zol}")
+                    
+                    # Ošetření textu tipu podle toho, zda je zápas utajen nebo už běží
+                    if hrac == current_user:
+                        # Své vlastní tipy vidí hráč vždycky
+                        Zobrazit_tip = f"{t['d']} : {t['h']}"
                     else:
-                        st.write(f"• {hrac}: *? : ?* (Utajeno)")
-                st.write("---")
+                        # Tipy soupeřů vidí, jen pokud už byl zápas odtajněn
+                        Zobrazit_tip = f"{t['d']} : {t['h']}" if odtajneno else "? : ?"
+                    
+                    # Příznak žolíka
+                    zolik_text = "🔥 Žolík" if data["zolici"][hrac].get(z_id, False) else ""
+                    
+                    radky_tabulky.append({
+                        "Hráč": hrac,
+                        "Tip": Zobrazit_tip,
+                        "Žolík": zolik_text
+                    })
+                
+                # Vytvoříme přehledný DataFrame a vykreslíme tabulku
+                df_zapas_tipy = pd.DataFrame(radky_tabulky)
+                st.dataframe(df_zapas_tipy, use_container_width=True, hide_index=True)
+                st.write("---");
         else:
-            st.write("### 📊 Kompletní pevná tabulka dlouhodobých tipů")
+            st.write("### 📊 Kompletní pevná tabulka dlouhodobých tipů")    
             
             kategorie = [
                 "Celkový vítěz 🏆", 

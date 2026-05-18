@@ -526,22 +526,25 @@ elif volba == "Moje tipy (Zápasy) 📝":
                 if z["den"] != vybrany_den: continue
                 z_id = z["id"]
                 
-                # ✨ OPRAVA POŘADÍ: Zjištění odehraného zápasu musí být jako první!
                 zapas_odehran = z_id in data["vysledky"]
-                
                 st.write(f"**{z['datum']} | {z['domaci']} vs. {z['hoste']}**")
                 stary_d = data["tipy"][current_user].get(z_id, {}).get("d", 0)
                 stary_h = data["tipy"][current_user].get(z_id, {}).get("h", 0)
                 
-                # --- NEPRŮSTŘELNÁ KONTROLA ČASU ZAHÁJENÍ ZÁPASU ---
+                # --- KONTROLA ČASU ZAHÁJENÍ ZÁPASU (Opravené párování textu) ---
                 import datetime as dt_lib
                 aktualni_cas = dt_lib.datetime.now()
-                dnes_format1 = aktualni_cas.strftime("%d.%m.")
-                dnes_format2 = f"{aktualni_cas.day}. {aktualni_cas.month}."
+                
+                # Vygenerujeme dnešní den bez mezer (např. "18.5.")
+                dnes_cisty1 = aktualni_cas.strftime("%d.%m.").replace("0", "")
+                dnes_cisty2 = f"{aktualni_cas.day}.{aktualni_cas.month}."
+                
+                # Očistíme text vybraného dne v roletce, abychom v něm mohli hledat (např. "18.5.(pondělí)")
+                vybrany_den_cisty = vybrany_den.replace(" ", "")
                 
                 zapas_uzamcen = False
-                je_dnes = (vybrany_den.replace(" ", "") == dnes_format1.replace(" ", "") or 
-                           vybrany_den.replace(" ", "") == dnes_format2.replace(" ", ""))
+                # Pokud vybraný den v roletce obsahuje dnešní datum, zapínáme hodinový zámek
+                je_dnes = (dnes_cisty1 in vybrany_den_cisty or dnes_cisty2 in vybrany_den_cisty)
                 
                 if je_dnes:
                     try:
@@ -553,7 +556,6 @@ elif volba == "Moje tipy (Zápasy) 📝":
                 else:
                     zapas_uzamcen = False
                     
-                # Kontrola administrativního vyhodnocení
                 if data["vysledky"].get(str(z["id"]), {}).get("vyhodnoceno", False):
                     zapas_uzamcen = True
                     
@@ -589,6 +591,46 @@ elif volba == "Moje tipy (Zápasy) 📝":
                 st.success("Tipy pro vybraný den uloženy do Google Tabulky!")
                 time.sleep(0.5)
                 st.rerun()
+
+        # --- NOVÁ DYNAMICKÁ TABULKA MVP S AKTUÁLNÍMI STATISTIKAMI ---
+        st.write("### 🏒 Jak si vedou vaši favorité na nejužitečnějšího hráče (MVP)?")
+        
+        mvp_radky = []
+        for hrac in HRACI:
+            # Načteme dlouhodobý tip na MVP od konkrétního tipujícího
+            natipovane_mvp = data.get("celkove_tipy", {}).get(hrac, {}).get("mvp", "-").strip()
+            
+            # Pokusíme se najít tohoto zapsaného hráče v naší matici statistik
+            stats_hledaneho_hrace = "-"
+            if natipovane_mvp != "-":
+                # Prohledáme soupisku, jestli zadaný text sedí (např. obsahuje příjmení)
+                nalezeny_hrac_na_soupisce = None
+                for c_hrac in SOUPISKA_CR:
+                    if c_hrac.lower() in natipovane_mvp.lower() or natipovane_mvp.lower() in c_hrac.lower():
+                        nalezeny_hrac_na_soupisce = c_hrac
+                        break
+                
+                # Pokud jsme hráče našli, vytáhneme z df_statistiky jeho reálná čísla
+                if nalezeny_hrac_na_soupisce and not df_statistiky.empty:
+                    hrac_row = df_statistiky[df_statistiky["Hráč"] == nalezeny_hrac_na_soupisce]
+                    if not hrac_row.empty:
+                        goly = int(hrac_row.iloc[0]["Celkem Góly"])
+                        asistence = int(hrac_row.iloc[0]["Celkem Asistence"])
+                        body = int(hrac_row.iloc[0]["Celkem Body (G+A)"])
+                        stats_hledaneho_hrace = f"⭐ {goly} + {asistence} = {body} b."
+                    else:
+                        stats_hledaneho_hrace = "0 + 0 = 0 b."
+                else:
+                    stats_hledaneho_hrace = "0 + 0 = 0 b. (mimo soupisku ČR)"
+            
+            mvp_radky.append({
+                "Tipující parťák": hrac,
+                "Jeho celkový tip na MVP": natipovane_mvp,
+                "Aktuální bilance v turnaji (G+A=B)": stats_hledaneho_hrace
+            })
+            
+        df_mvp_srovnani = pd.DataFrame(mvp_radky)
+        st.dataframe(df_mvp_srovnani, use_container_width=True, hide_index=True)
 
 # --- 3. ZÁLOŽKA: CELOTURNAJOVÉ TIPY ---
 elif volba == "Celoturnajové tipy 🏆":

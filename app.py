@@ -750,7 +750,8 @@ elif volba == "Tipy ostatních 👀":
         kat = st.radio("Vyber kategorii:", ["Denní zápasy", "Celoturnajové tipy"])
         
         if kat == "Denní zápasy":
-            v_den = st.selectbox("Vyber hrací den:", DNY, key="view_den")
+            index_dnes = ziskej_index_dnesniho_dne()
+            v_den = st.selectbox("Vyber hrací den:", DNY, index=index_dnes)
             
             # --- KONTROLA ČASU PRO UTAJENÍ TIPŮ ---
             import datetime as dt_lib

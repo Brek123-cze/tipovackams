@@ -896,7 +896,7 @@ elif volba == "Správa nastavení a zámků ⚙️" and current_user == "admin":
             st.rerun()
 
 # --- 6. ADMIN ZÁLOŽKA: EXCEL MATICE STATISTIK ČR ---
-elif volba == "Správa statistik ČR" and current_user == "admin":
+elif volba == "Správa statistik ČR (Excel matice)" and current_user == "admin":
     st.title("👑 Administrace: Kanadské bodování")
     df_editor_input = df_statistiky.drop(columns=["Celkem Góly", "Celkem Asistence", "Celkem Body (G+A)"])
     

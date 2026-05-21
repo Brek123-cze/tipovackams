@@ -793,22 +793,35 @@ elif volba == "Tipy ostatních 👀":
                     radek = {"Zápas": info_o_zapasu}
                     
                     # Projdeme všechny hráče a vytáhneme jejich tipy pro tento konkrétní zápas
+                    # Projdeme všechny hráče a vytáhneme jejich tipy pro tento konkrétní zápas
                     for hrac in HRACI:
                         t = data["tipy"][hrac].get(z_id, {"d": "-", "h": "-"})
                         ma_zolika = data["zolici"][hrac].get(z_id, False)
                         
+                        # Zjistíme, zda má hráč v databázi reálně zadáno skóre (jestli to nejsou pomlčky nebo prázdno)
+                        ma_reálny_tip = (t.get("d") is not None and t.get("h") is not None and str(t.get("d")) != "-" and str(t.get("h")) != "-")
+                        
                         # Určení zobrazeného textu tipu
                         if hrac == current_user:
-                            text_tipu = f"{t['d']}:{t['h']}"
+                            # Své vlastní tipy vidím vždy (buď číslo, nebo "-:-" pokud nemám vyplněno)
+                            text_tipu = f"{t['d']}:{t['h']}" if ma_reálny_tip else "-:-"
                         else:
-                            text_tipu = f"{t['d']}:{t['h']}" if odtajneno else "?:?"
+                            if odtajneno:
+                                # Zápas běží/skončil -> vidíme realitu
+                                text_tipu = f"{t['d']}:{t['h']}" if ma_reálny_tip else "-:-"
+                            else:
+                                # Zápas je utajený -> rozlišíme, zda dotyčný už vsadil
+                                if ma_reálny_tip:
+                                    text_tipu = "?:?"  # Má vsazeno, ale tajíme skóre
+                                else:
+                                    text_tipu = "-:-"  # Pozor, tento hráč ještě nevsadil!
                             
-                        # Pokud má žolík, přidáme oheň
-                        if ma_zolika:
+                        # Pokud má žolíka a zároveň má natipováno (nebo jsme to my), přidáme oheň
+                        if ma_zolika and (odtajneno or hrac == current_user or ma_reálny_tip):
                             text_tipu += " 🔥"
                             
                         radek[hrac] = text_tipu
-                        
+                                                                           
                     radky_matice.append(radek)
                 
                 # Vytvoření jedné společné tabulky pro celý den

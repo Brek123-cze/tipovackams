@@ -118,8 +118,26 @@ def fetch_data_from_api(url):
     except:
         pass
     return []
-    
+
+def ziskej_index_dnesniho_dne():
+    try:
+        import datetime as dt_lib
+        # Vynutíme přesný český čas (UTC + 2 hodiny)
+        aktualni_cas = dt_lib.datetime.utcnow() + dt_lib.timedelta(hours=2)
+        dnes_text = f"{aktualni_cas.day}. {aktualni_cas.month}." # "21. 5."
+        dnes_text_cisty = f"{aktualni_cas.day}.{aktualni_cas.month}." # "21.5."
+        
+        for idx, den in enumerate(DNY):
+            # Očistíme mezery pro jistotu při porovnávání
+            den_clean = den.replace(" ", "")
+            if dnes_text_cisty in den_clean or dnes_text.replace(" ", "") in den_clean:
+                return idx
+    except:
+        pass
+    return 0  # Pokud se cokoli nepovede nebo den nenajde, skočí výchozí první den
+
 @st.cache_data(ttl=300)
+
 def nacti_vsechna_data():
     vysledky = {}
     tipy = {h: {} for h in HRACI}
@@ -537,7 +555,8 @@ elif volba == "Moje tipy (Zápasy) 📝":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
         st.title("📝 Tipování zápasů")
-        vybrany_den = st.selectbox("Vyber hrací den:", DNY)
+        index_dnes = ziskej_index_dnesniho_dne()
+        vybrany_den = st.selectbox("Vyber hrací den:", DNY, index=index_dnes)
         st.write(f"### Zápasy pro: {vybrany_den}")
         st.info("Změň skóre, zaškrtni žolíka a pak vše odešli naráz jedním kliknutím dole.")
         
@@ -724,7 +743,6 @@ elif volba == "Celoturnajové tipy 🏆":
             st.error("🔒 Dlouhodobé tipy byly uzamčeny správcem, hodnoty již nelze upravovat.")
 
 # --- 4. ZÁLOŽKA: TIPY OSTATNÍCH ---
-# --- 4. ZÁLOŽKA: TIPY OSTATNÍCH ---
 elif volba == "Tipy ostatních 👀":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
@@ -905,7 +923,8 @@ elif volba == "Zadávání výsledků 📝" and current_user == "admin":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
         st.title("👑 Administrace: Zadávání reálných výsledků")
-        v_den = st.selectbox("Vyber den zápasů:", DNY)
+        index_dnes = ziskej_index_dnesniho_dne()
+        v_den = st.selectbox("Vyber hrací den:", DNY, index=index_dnes)
         
         with st.form("admin_vysledky_form"):
             st.write(f"### Reálné zápasy pro den: {v_den}")

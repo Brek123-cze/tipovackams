@@ -896,11 +896,11 @@ elif volba == "Správa nastavení a zámků ⚙️" and current_user == "admin":
             st.rerun()
 
 # --- 6. ADMIN ZÁLOŽKA: EXCEL MATICE STATISTIK ČR ---
-elif volba == "Správa statistik ČR (Excel matice)" and current_user == "admin":
+elif volba == "Správa statistik ČR" and current_user == "admin":
     st.title("👑 Administrace: Kanadské bodování")
     df_editor_input = df_statistiky.drop(columns=["Celkem Góly", "Celkem Asistence", "Celkem Body (G+A)"])
     
-    konfigurace_sloupcu = {"Hráč": st.column_config.TextColumn("Hráč", width=180, disabled=True)}
+    konfigurace_sloupcu = {"Hráč": st.column_config.TextColumn("Hráč", width=180, disabled=True, pinned=True)}
     for col in SLOUPCE_MATICE:
         konfigurace_sloupcu[col] = st.column_config.NumberColumn(col, width=45, min_value=0, step=1)
     

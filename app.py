@@ -569,7 +569,6 @@ elif volba == "Moje tipy (Zápasy) 📝":
             docasne_tipy = {}
             docasni_zolici = {}
             for z in ZAPASY:
-                for z in ZAPASY:
                 if z["den"] != vybrany_den: continue
                 z_id = z["id"]
                 

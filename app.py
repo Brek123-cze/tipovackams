@@ -607,36 +607,44 @@ elif volba == "Moje tipy (Zápasy) 📝":
                     
                 je_zamknuto = bool(zapas_uzamcen or zapas_odehran)
                 
-                # --- DYNAMICKÉ VYHLEDÁNÍ HISTORIE TÝMŮ V TURNAJI ---
+                # --- ✨ NEPRŮSTŘELNÉ VYHLEDÁNÍ HISTORIE TÝMŮ V TURNAJI ---
                 historie_domaci = []
                 historie_hoste = []
                 
+                tým_d_hledany = z["domaci"].lower().strip()
+                tým_h_hledany = z["hoste"].lower().strip()
+                
                 for stary_z in ZAPASY:
                     sz_id = stary_z["id"]
-                    if sz_id in data["vysledky"] and data["vysledky"][sz_id].get("vyhodnoceno", False):
+                    # Podíváme se, zda pro tento zápas už máme v systému uložený reálný výsledek
+                    if sz_id in data["vysledky"]:
                         res = data["vysledky"][sz_id]
-                        goly_d = res.get("d", 0)
-                        goly_h = res.get("h", 0)
+                        goly_d = res.get("d")
+                        goly_h = res.get("h")
                         
-                        # Kontrola pro domácí tým aktuálního zápasu
-                        if stary_z["domaci"] == z["domaci"]:
-                            historie_domaci.append(f"vs {stary_z['hoste']} ({goly_d}:{goly_h})")
-                        elif stary_z["hoste"] == z["domaci"]:
-                            historie_domaci.append(f"vs {stary_z['domaci']} ({goly_h}:{goly_d})")
+                        # Zkontrolujeme, že výsledek není prázdný a je opravdu zadaný
+                        if goly_d is not None and goly_h is not None and str(goly_d) != "-" and str(goly_h) != "-":
+                            sd_tým = stary_z["domaci"].lower().strip()
+                            sh_tým = stary_z["hoste"].lower().strip()
                             
-                        # Kontrola pro hostující tým aktuálního zápasu
-                        if stary_z["domaci"] == z["hoste"]:
-                            historie_hoste.append(f"vs {stary_z['hoste']} ({goly_d}:{goly_h})")
-                        elif stary_z["hoste"] == z["hoste"]:
-                            historie_hoste.append(f"vs {stary_z['domaci']} ({goly_h}:{goly_d})")
+                            # Kontrola pro DOMÁCÍ TÝM aktuálního zápasu
+                            if sd_tým == tým_d_hledany:
+                                historie_domaci.append(f"vs {stary_z['hoste']} ({goly_d}:{goly_h})")
+                            elif sh_tým == tým_d_hledany:
+                                historie_domaci.append(f"vs {stary_z['domaci']} ({goly_h}:{goly_d})")
+                                
+                            # Kontrola pro HOSTUJÍCÍ TÝM aktuálního zápasu
+                            if sd_tým == tým_h_hledany:
+                                historie_hoste.append(f"vs {stary_z['hoste']} ({goly_d}:{goly_h})")
+                            elif sh_tým == tým_h_hledany:
+                                historie_hoste.append(f"vs {stary_z['domaci']} ({goly_h}:{goly_d})")
 
-                txt_hist_domaci = ", ".join(historie_domaci) if historie_domaci else "Zatím nehráli"
-                txt_hist_hoste = ", ".join(historie_hoste) if historie_hoste else "Zatím nehráli"
+                txt_hist_domaci = ", ".join(historie_domaci) if historie_domaci else "Zatím žádný zápas"
+                txt_hist_hoste = ", ".join(historie_hoste) if historie_hoste else "Zatím žádný zápas"
                 
-                # --- ROZVRŽENÍ STRÁNKY NA DVA HLAVNÍ SLOUPCE ---
-                sloupec_vkladani, sloupec_historie = st.columns([2, 3])
+                # --- ROZVRŽENÍ SLOUPCŮ (1:1 pro perfektní zarovnání) ---
+                sloupec_vkladani, sloupec_historie = st.columns([1, 1])
                 
-                # LEVÝ SLOUPEC: Vkládání tipu a žolík pod ním
                 with sloupec_vkladani:
                     c1, c2 = st.columns(2)
                     tip_d = c1.number_input(f"Skóre {z['domaci']}", min_value=0, value=int(stary_d), key=f"d_{z_id}", disabled=je_zamknuto)
@@ -645,18 +653,17 @@ elif volba == "Moje tipy (Zápasy) 📝":
                     je_z = (aktivni_zolik_dnes == z_id)
                     zolik = st.checkbox("💥 Žolík pro tento zápas", value=je_z, key=f"z_{z_id}", disabled=je_zamknuto)
                     
-                # PRAVÝ SLOUPEC: Přehledná bilance týmů menším písmem
                 with sloupec_historie:
-                    st.markdown("<p style='margin-bottom: 2px; font-weight: bold; color: #555;'>📊 Dosavadní výsledky v turnaji:</p>", unsafe_allow_html=True)
-                    st.caption(f"**{z['domaci']}:** {txt_hist_domaci}")
-                    st.caption(f"**{z['hoste']}:** {txt_hist_hoste}")
+                    st.markdown("<p style='margin-bottom: 2px; font-weight: bold; color: #1e3d59;'>📊 Výsledky v turnaji:</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='margin: 0; font-size: 14px;'><b>{z['domaci']}:</b> {txt_hist_domaci}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='margin: 0; font-size: 14px;'><b>{z['hoste']}:</b> {txt_hist_hoste}</p>", unsafe_allow_html=True)
                 
                 docasne_tipy[z_id] = {"d": tip_d, "h": tip_h}
                 docasni_zolici[z_id] = zolik
                 
                 if je_zamknuto:
                     st.caption("🔒 Zápas odstartoval nebo již skončil, tipy jsou uzamčeny.")
-                st.write("📈") # Oddělovač mezi zápasy
+                st.write("---")
                 
             ulozit_button = st.form_submit_button("Uložit zápis zápasů do tabulky 💾")
             

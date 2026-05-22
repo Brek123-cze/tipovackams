@@ -629,15 +629,15 @@ elif volba == "Moje tipy (Zápasy) 📝":
                             
                             # Kontrola pro DOMÁCÍ TÝM aktuálního zápasu
                             if sd_tým == tým_d_hledany:
-                                historie_domaci.append(f"vs {stary_z['hoste']} ({goly_d}:{goly_h})")
+                                historie_domaci.append(f"{stary_z['hoste']} ({goly_d}:{goly_h})")
                             elif sh_tým == tým_d_hledany:
-                                historie_domaci.append(f"vs {stary_z['domaci']} ({goly_h}:{goly_d})")
+                                historie_domaci.append(f"{stary_z['domaci']} ({goly_h}:{goly_d})")
                                 
                             # Kontrola pro HOSTUJÍCÍ TÝM aktuálního zápasu
                             if sd_tým == tým_h_hledany:
-                                historie_hoste.append(f"vs {stary_z['hoste']} ({goly_d}:{goly_h})")
+                                historie_hoste.append(f"{stary_z['hoste']} ({goly_d}:{goly_h})")
                             elif sh_tým == tým_h_hledany:
-                                historie_hoste.append(f"vs {stary_z['domaci']} ({goly_h}:{goly_d})")
+                                historie_hoste.append(f"{stary_z['domaci']} ({goly_h}:{goly_d})")
 
                 txt_hist_domaci = ", ".join(historie_domaci) if historie_domaci else "Zatím žádný zápas"
                 txt_hist_hoste = ", ".join(historie_hoste) if historie_hoste else "Zatím žádný zápas"

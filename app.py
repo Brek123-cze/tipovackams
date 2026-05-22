@@ -569,67 +569,95 @@ elif volba == "Moje tipy (Zápasy) 📝":
             docasne_tipy = {}
             docasni_zolici = {}
             for z in ZAPASY:
+                for z in ZAPASY:
                 if z["den"] != vybrany_den: continue
                 z_id = z["id"]
                 
                 zapas_odehran = z_id in data["vysledky"]
-                st.write(f"**{z['datum']} | {z['domaci']} vs. {z['hoste']}**")
+                st.markdown(f"### 🏒 {z['datum']} | {z['domaci']} vs. {z['hoste']}")
+                
                 stary_d = data["tipy"][current_user].get(z_id, {}).get("d", 0)
                 stary_h = data["tipy"][current_user].get(z_id, {}).get("h", 0)
                 
-                # --- ⏱️ NEPRŮSTŘELNÁ KONTROLA ČESKÉHO ČASU ---
+                # --- KONTROLA ČASU ZAHÁJENÍ ZÁPASU ---
                 import datetime as dt_lib
-                
-                # Získáme UTC čas ze serveru a posuneme ho o +2 hodiny na český letní čas (CEST)
                 aktualni_cas = dt_lib.datetime.utcnow() + dt_lib.timedelta(hours=2)
-                
-                # Vygenerujeme dnešní den bez nul pro spolehlivé hledání (např. "18.5.")
                 dnes_cisty = f"{aktualni_cas.day}.{aktualni_cas.month}."
                 vybrany_den_cisty = vybrany_den.replace(" ", "")
                 
                 zapas_uzamcen = False
-                # Patří vybraný den z roletky dnešku?
                 je_dnes = dnes_cisty in vybrany_den_cisty
                 
                 if je_dnes:
                     try:
-                        # Načteme čas zápasu (např. "16:20")
                         cas_obj = dt_lib.datetime.strptime(z["datum"].strip(), "%H:%M")
-                        # Složíme kompletní dnešní datum s časem zápasu
                         cas_zapasu = aktualni_cas.replace(hour=cas_obj.hour, minute=cas_obj.minute, second=0, microsecond=0)
-                        
-                        # Zamkneme, pokud už český čas překročil začátek zápasu
                         zapas_uzamcen = aktualni_cas > cas_zapasu
                     except:
                         zapas_uzamcen = False
                 else:
-                    # Pokud se prohlíží dny v minulosti, zamkneme je taky automaticky
                     try:
-                        # Pokusíme se vytáhnout první číslo z textu dne (např. 15 z "15. 5. (Pátek)")
                         den_zapasu = int(vybrany_den.split(".")[0].strip())
-                        # Pokud je den v roletce menší než dnešní den v ČR, zápas je starý a zamkneme ho
                         if den_zapasu < aktualni_cas.day:
                             zapas_uzamcen = True
                     except:
                         pass
                     
-                # Ruční zámek z administrace (pokud je zápas vyhodnocen)
                 if data["vysledky"].get(str(z["id"]), {}).get("vyhodnoceno", False):
                     zapas_uzamcen = True
                     
                 je_zamknuto = bool(zapas_uzamcen or zapas_odehran)
                 
-                c1, c2, c3 = st.columns([1, 1, 2])
-                tip_d = c1.number_input(f"Skóre {z['domaci']}", min_value=0, value=int(stary_d), key=f"d_{z_id}", disabled=je_zamknuto)
-                tip_h = c2.number_input(f"Skóre {z['hoste']}", min_value=0, value=int(stary_h), key=f"h_{z_id}", disabled=je_zamknuto)
-                je_z = (aktivni_zolik_dnes == z_id)
-                zolik = c3.checkbox("💥 Žolík dne", value=je_z, key=f"z_{z_id}", disabled=je_zamknuto)
+                # --- DYNAMICKÉ VYHLEDÁNÍ HISTORIE TÝMŮ V TURNAJI ---
+                historie_domaci = []
+                historie_hoste = []
+                
+                for stary_z in ZAPASY:
+                    sz_id = stary_z["id"]
+                    if sz_id in data["vysledky"] and data["vysledky"][sz_id].get("vyhodnoceno", False):
+                        res = data["vysledky"][sz_id]
+                        goly_d = res.get("d", 0)
+                        goly_h = res.get("h", 0)
+                        
+                        # Kontrola pro domácí tým aktuálního zápasu
+                        if stary_z["domaci"] == z["domaci"]:
+                            historie_domaci.append(f"vs {stary_z['hoste']} ({goly_d}:{goly_h})")
+                        elif stary_z["hoste"] == z["domaci"]:
+                            historie_domaci.append(f"vs {stary_z['domaci']} ({goly_h}:{goly_d})")
+                            
+                        # Kontrola pro hostující tým aktuálního zápasu
+                        if stary_z["domaci"] == z["hoste"]:
+                            historie_hoste.append(f"vs {stary_z['hoste']} ({goly_d}:{goly_h})")
+                        elif stary_z["hoste"] == z["hoste"]:
+                            historie_hoste.append(f"vs {stary_z['domaci']} ({goly_h}:{goly_d})")
+
+                txt_hist_domaci = ", ".join(historie_domaci) if historie_domaci else "Zatím nehráli"
+                txt_hist_hoste = ", ".join(historie_hoste) if historie_hoste else "Zatím nehráli"
+                
+                # --- ROZVRŽENÍ STRÁNKY NA DVA HLAVNÍ SLOUPCE ---
+                sloupec_vkladani, sloupec_historie = st.columns([2, 3])
+                
+                # LEVÝ SLOUPEC: Vkládání tipu a žolík pod ním
+                with sloupec_vkladani:
+                    c1, c2 = st.columns(2)
+                    tip_d = c1.number_input(f"Skóre {z['domaci']}", min_value=0, value=int(stary_d), key=f"d_{z_id}", disabled=je_zamknuto)
+                    tip_h = c2.number_input(f"Skóre {z['hoste']}", min_value=0, value=int(stary_h), key=f"h_{z_id}", disabled=je_zamknuto)
+                    
+                    je_z = (aktivni_zolik_dnes == z_id)
+                    zolik = st.checkbox("💥 Žolík pro tento zápas", value=je_z, key=f"z_{z_id}", disabled=je_zamknuto)
+                    
+                # PRAVÝ SLOUPEC: Přehledná bilance týmů menším písmem
+                with sloupec_historie:
+                    st.markdown("<p style='margin-bottom: 2px; font-weight: bold; color: #555;'>📊 Dosavadní výsledky v turnaji:</p>", unsafe_allow_html=True)
+                    st.caption(f"**{z['domaci']}:** {txt_hist_domaci}")
+                    st.caption(f"**{z['hoste']}:** {txt_hist_hoste}")
                 
                 docasne_tipy[z_id] = {"d": tip_d, "h": tip_h}
                 docasni_zolici[z_id] = zolik
+                
                 if je_zamknuto:
-                    st.caption("🔒 Tento zápas již byl zahájen, odehrán nebo patří minulosti. Tipy jsou uzamčeny.")
-                st.write("---")
+                    st.caption("🔒 Zápas odstartoval nebo již skončil, tipy jsou uzamčeny.")
+                st.write("📈") # Oddělovač mezi zápasy
                 
             ulozit_button = st.form_submit_button("Uložit zápis zápasů do tabulky 💾")
             

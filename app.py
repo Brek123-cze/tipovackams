@@ -445,27 +445,27 @@ except:
 for hrac in HRACI:
     ct = data.get("celkove_tipy", {}).get(hrac, {})
     
-    # 1. Trefa Mistra (např. 15 bodů)
+    # 1. Trefa Mistra (např. 20 bodů)
     if real_mistr and ct.get("mistr", "").strip().lower() == real_mistr:
-        statistiky_hracu[hrac]["body"] += 15
+        statistiky_hracu[hrac]["body"] += 20
         
-    # 2. Trefa semifinalistů (např. 5 bodů za každého správného člena bez ohledu na pořadí)
+    # 2. Trefa semifinalistů (např. 10 bodů za každého správného člena bez ohledu na pořadí)
     hrac_semi = [str(s).strip().lower() for s in ct.get("semifinale", ["", "", "", ""])]
     for tym in hrac_semi:
         if tym and tym in real_semi:
-            statistiky_hracu[hrac]["body"] += 5
+            statistiky_hracu[hrac]["body"] += 10
             
     # 3. Trefa konečné fáze ČR (např. 10 bodů)
     if real_cesko and ct.get("cesko") == real_cesko:
-        statistiky_hracu[hrac]["body"] += 10
+        statistiky_hracu[hrac]["body"] += 20
         
-    # 4. Trefa MVP turnaje (např. 15 bodů)
+    # 4. Trefa MVP turnaje (např. 20 bodů)
     # Použijeme "vyskytuje se v textu", aby to uznalo např. "Kubalík" i "Dominik Kubalík"
     tip_mvp = ct.get("mvp", "").strip().lower()
     if real_mvp and tip_mvp and (real_mvp in tip_mvp or tip_mvp in real_mvp):
-        statistiky_hracu[hrac]["body"] += 15
+        statistiky_hracu[hrac]["body"] += 20
         
-    # 5. Přesný počet gólů (30 bodů), nebo tolerance +- 10 gólů (10 bodů)
+    # 5. Přesný počet gólů (20 bodů), nebo tolerance +- 3 gólů (10 bodů)
     try:
         tip_goly = int(ct.get("goly", 0))
     except:
@@ -473,8 +473,8 @@ for hrac in HRACI:
         
     if real_goly > 0 and tip_goly > 0:
         if tip_goly == real_goly:
-            statistiky_hracu[hrac]["body"] += 30
-        elif abs(tip_goly - real_goly) <= 10:
+            statistiky_hracu[hrac]["body"] += 20
+        elif abs(tip_goly - real_goly) <= 3:
             statistiky_hracu[hrac]["body"] += 10
 
 if "uzivatel" not in st.session_state:

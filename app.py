@@ -430,6 +430,53 @@ for hrac in HRACI:
                 statistiky_hracu[hrac]["body"] += b
                 if p: statistiky_hracu[hrac]["presne"] += 1
 
+# --- ✨ NOVINKA: PŘIČTENÍ BODŮ ZA CELOTURNAJOVÉ TIPY ---
+# Nejdříve načteme reálné výsledky turnaje zadané adminem (pokud už existují)
+real_mistr = data.get("nastaveni", {}).get("real_mistr", "").strip().lower()
+real_semi = [str(s).strip().lower() for s in data.get("nastaveni", {}).get("real_semifinale", ["", "", "", ""])]
+real_cesko = data.get("nastaveni", {}).get("real_cesko", "Základní skupina")
+real_mvp = data.get("nastaveni", {}).get("real_mvp", "").strip().lower()
+try:
+    real_goly = int(data.get("nastaveni", {}).get("real_goly", 0))
+except:
+    real_goly = 0
+
+# Projdeme každého hráče a porovnáme jeho dlouhodobé tipy s realitou
+for hrac in HRACI:
+    ct = data.get("celkove_tipy", {}).get(hrac, {})
+    
+    # 1. Trefa Mistra (např. 15 bodů)
+    if real_mistr and ct.get("mistr", "").strip().lower() == real_mistr:
+        statistiky_hracu[hrac]["body"] += 15
+        
+    # 2. Trefa semifinalistů (např. 5 bodů za každého správného člena bez ohledu na pořadí)
+    hrac_semi = [str(s).strip().lower() for s in ct.get("semifinale", ["", "", "", ""])]
+    for tym in hrac_semi:
+        if tym and tym in real_semi:
+            statistiky_hracu[hrac]["body"] += 5
+            
+    # 3. Trefa konečné fáze ČR (např. 10 bodů)
+    if real_cesko and ct.get("cesko") == real_cesko:
+        statistiky_hracu[hrac]["body"] += 10
+        
+    # 4. Trefa MVP turnaje (např. 15 bodů)
+    # Použijeme "vyskytuje se v textu", aby to uznalo např. "Kubalík" i "Dominik Kubalík"
+    tip_mvp = ct.get("mvp", "").strip().lower()
+    if real_mvp and tip_mvp and (real_mvp in tip_mvp or tip_mvp in real_mvp):
+        statistiky_hracu[hrac]["body"] += 15
+        
+    # 5. Přesný počet gólů (30 bodů), nebo tolerance +- 10 gólů (10 bodů)
+    try:
+        tip_goly = int(ct.get("goly", 0))
+    except:
+        tip_goly = 0
+        
+    if real_goly > 0 and tip_goly > 0:
+        if tip_goly == real_goly:
+            statistiky_hracu[hrac]["body"] += 30
+        elif abs(tip_goly - real_goly) <= 10:
+            statistiky_hracu[hrac]["body"] += 10
+
 if "uzivatel" not in st.session_state:
     st.title("🏒 MS v hokeji - Tipovačka")
     c_left, c_mid, c_right = st.columns([1, 2, 1])
@@ -968,6 +1015,52 @@ elif volba == "Správa nastavení a zámků ⚙️" and current_user == "admin":
             
             uloz_do_google_sheets(data)
             st.success("Nastavení zámků bylo úspěšně uloženo a aplikováno!")
+            time.sleep(0.5)
+            st.rerun()
+
+    st.write("---")
+    st.subheader("🏆 Vyhodnocení celoturnajových výsledků (Zadává admin na konci MS)")
+    st.info("Jakmile sem vyplníš oficiální výsledky šampionátu, aplikace automaticky spočítá dlouhodobé body a přičte je všem do tabulky.")
+
+    # Načtení starých zadaných výsledků (aby tam nezmizely)
+    st_mistr = data.get("nastaveni", {}).get("real_mistr", "")
+    st_semi = data.get("nastaveni", {}).get("real_semifinale", ["", "", "", ""])
+    while len(st_semi) < 4: st_semi.append("")
+    st_cesko = data.get("nastaveni", {}).get("real_cesko", "Základní skupina")
+    st_mvp = data.get("nastaveni", {}).get("real_mvp", "")
+    st_goly = data.get("nastaveni", {}).get("real_goly", 0)
+
+    with st.form("admin_celkove_vyhodnoceni_form"):
+        adm_mistr = st.text_input("Oficiální MISTR SVĚTA 🥇", value=st_mistr)
+        
+        st.write("**Oficiální 4 semifinalisté (týmy, které hrály o medaile):**")
+        adm_semi1 = st.text_input("Semifinalista 1", value=st_semi[0])
+        adm_semi2 = st.text_input("Semifinalista 2", value=st_semi[1])
+        adm_semi3 = st.text_input("Semifinalista 3", value=st_semi[2])
+        adm_semi4 = st.text_input("Semifinalista 4", value=st_semi[3])
+        
+        faze_options = ["Základní skupina", "Čtvrtfinále", "Semifinále", "Bronz", "Stříbro", "Zlato 🥇"]
+        if st_cesko not in faze_options: st_cesko = "Základní skupina"
+        adm_cesko = st.selectbox("Kde reálně skončil český tým? 🇨🇿", options=faze_options, index=faze_options.index(st_cesko))
+        
+        adm_mvp = st.text_input("Oficiální nejužitečnější hráč turnaje (MVP) 🌟", value=st_mvp)
+        adm_goly = st.number_input("Celkový reálný počet gólů na turnaji 🥅", min_value=0, value=int(st_goly), step=1)
+        
+        ulozit_vysledky_ms = st.form_submit_button("Uložit oficiální výsledky a připočíst body 🔄")
+
+    if ulozit_vysledky_ms:
+        with st.spinner("Ukládám celkové výsledky a přepočítávám body..."):
+            if "nastaveni" not in data:
+                data["nastaveni"] = {}
+                
+            data["nastaveni"]["real_mistr"] = adm_mistr
+            data["nastaveni"]["real_semifinale"] = [adm_semi1, adm_semi2, adm_semi3, adm_semi4]
+            data["nastaveni"]["real_cesko"] = adm_cesko
+            data["nastaveni"]["real_mvp"] = adm_mvp
+            data["nastaveni"]["real_goly"] = int(adm_goly)
+            
+            uloz_do_google_sheets(data)
+            st.success("Celoturnajové výsledky byly bezpečně uloženy na Disk a žebříček byl přepočítán!")
             time.sleep(0.5)
             st.rerun()
 

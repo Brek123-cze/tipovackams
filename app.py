@@ -103,6 +103,35 @@ ZAPASY = [
     {"id": "54", "den": "26. 5. (Úterý)", "datum": "16:20", "domaci": "Švédsko", "hoste": "Slovensko", "skupina": "B"},
     {"id": "55", "den": "26. 5. (Úterý)", "datum": "20:20", "domaci": "Švýcarsko", "hoste": "Finsko", "skupina": "A"},
     {"id": "56", "den": "26. 5. (Úterý)", "datum": "20:20", "domaci": "Česko", "hoste": "Kanada", "skupina": "B"},
+    # --- ČTVRTFINÁLE (Příklad dat) ---
+    {
+        "id": 57,  # Pokračuj v číslování (např. 101, 102, 103...)
+        "den": "28. 5. (Čtvrtek) - Čtvrtfinále",  # Tento text se ukáže v roletce
+        "datum": "16:20", 
+        "domaci": "Finsko", 
+        "hoste": "Česko"
+    },
+    {
+        "id": 58, 
+        "den": "28. 5. (Čtvrtek) - Čtvrtfinále", 
+        "datum": "16:20", 
+        "domaci": "Kanada", 
+        "hoste": "USA"
+    },
+    {
+        "id": 59, 
+        "den": "28. 5. (Čtvrtek) - Čtvrtfinále", 
+        "datum": "20:20", 
+        "domaci": "Švýcarsko", 
+        "hoste": "Švédsko"
+    },
+    {
+        "id": 60, 
+        "den": "28. 5. (Čtvrtek) - Čtvrtfinále", 
+        "datum": "20:20", 
+        "domaci": "Norsko", 
+        "hoste": "Lotyšsko"
+    },
 ]
 
 DNY = []

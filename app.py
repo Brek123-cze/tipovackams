@@ -1022,49 +1022,63 @@ elif volba == "Správa nastavení a zámků ⚙️" and current_user == "admin":
             st.rerun()
 
     st.write("---")
+    
     st.subheader("🏆 Vyhodnocení celoturnajových výsledků (Zadává admin na konci MS)")
     st.info("Jakmile sem vyplníš oficiální výsledky šampionátu, aplikace automaticky spočítá dlouhodobé body a přičte je všem do tabulky.")
 
-    # Načtení starých zadaných výsledků (aby tam nezmizely)
-    st_mistr = data.get("nastaveni", {}).get("real_mistr", "")
-    st_semi = data.get("nastaveni", {}).get("real_semifinale", ["", "", "", ""])
-    while len(st_semi) < 4: st_semi.append("")
-    st_cesko = data.get("nastaveni", {}).get("real_cesko", "Základní skupina")
-    st_mvp = data.get("nastaveni", {}).get("real_mvp", "")
-    st_goly = data.get("nastaveni", {}).get("real_goly", 0)
+    # Inicializace sekce v nastavení, pokud neexistuje
+    if "nastaveni" not in data:
+        data["nastaveni"] = {}
 
+    # Načtení starých zadaných výsledků (aby tam nezmizely)
+    st_mistr = data["nastaveni"].get("real_mistr", "")
+    st_semi = data["nastaveni"].get("real_semifinale", ["", "", "", ""])
+    while len(st_semi) < 4: st_semi.append("")
+    st_cesko = data["nastaveni"].get("real_cesko", "Základní skupina")
+    st_mvp = data["nastaveni"].get("real_mvp", "")
+    st_goly = data["nastaveni"].get("real_goly", 0)
+
+    # ✨ OPRAVA: Formulář zpracujeme pomocí session_state přes widget klíče, 
+    # nebo rovnou načteme hodnoty správně po kliknutí.
     with st.form("admin_celkove_vyhodnoceni_form"):
-        adm_mistr = st.text_input("Oficiální MISTR SVĚTA 🥇", value=st_mistr)
+        # Přidali jsme unikátní 'key' pro každé pole, aby si Streamlit hodnotu udržel při odeslání
+        adm_mistr = st.text_input("Oficiální MISTR SVÊTA 🥇", value=st_mistr, key="form_adm_mistr")
         
         st.write("**Oficiální 4 semifinalisté (týmy, které hrály o medaile):**")
-        adm_semi1 = st.text_input("Semifinalista 1", value=st_semi[0])
-        adm_semi2 = st.text_input("Semifinalista 2", value=st_semi[1])
-        adm_semi3 = st.text_input("Semifinalista 3", value=st_semi[2])
-        adm_semi4 = st.text_input("Semifinalista 4", value=st_semi[3])
+        adm_semi1 = st.text_input("Semifinalista 1", value=st_semi[0], key="form_adm_semi1")
+        adm_semi2 = st.text_input("Semifinalista 2", value=st_semi[1], key="form_adm_semi2")
+        adm_semi3 = st.text_input("Semifinalista 3", value=st_semi[2], key="form_adm_semi3")
+        adm_semi4 = st.text_input("Semifinalista 4", value=st_semi[3], key="form_adm_semi4")
         
         faze_options = ["Základní skupina", "Čtvrtfinále", "Semifinále", "Bronz", "Stříbro", "Zlato 🥇"]
         if st_cesko not in faze_options: st_cesko = "Základní skupina"
-        adm_cesko = st.selectbox("Kde reálně skončil český tým? 🇨🇿", options=faze_options, index=faze_options.index(st_cesko))
+        adm_cesko = st.selectbox("Kde reálně skončil český tým?", options=faze_options, index=faze_options.index(st_cesko), key="form_adm_cesko")
         
-        adm_mvp = st.text_input("Oficiální nejužitečnější hráč turnaje (MVP) 🌟", value=st_mvp)
-        adm_goly = st.number_input("Celkový reálný počet gólů na turnaji 🥅", min_value=0, value=int(st_goly), step=1)
+        adm_mvp = st.text_input("Nejužitečnější český hráč turnaje (MVP) 🌟", value=st_mvp, key="form_adm_mvp")
+        adm_goly = st.number_input("Celkový počet gólů na turnaji 🥅", min_value=0, value=int(st_goly), step=1, key="form_adm_goly")
         
         ulozit_vysledky_ms = st.form_submit_button("Uložit oficiální výsledky a připočíst body 🔄")
 
+    # Vyhodnocení odeslání formuláře
     if ulozit_vysledky_ms:
         with st.spinner("Ukládám celkové výsledky a přepočítávám body..."):
-            if "nastaveni" not in data:
-                data["nastaveni"] = {}
-                
-            data["nastaveni"]["real_mistr"] = adm_mistr
-            data["nastaveni"]["real_semifinale"] = [adm_semi1, adm_semi2, adm_semi3, adm_semi4]
-            data["nastaveni"]["real_cesko"] = adm_cesko
-            data["nastaveni"]["real_mvp"] = adm_mvp
-            data["nastaveni"]["real_goly"] = int(adm_goly)
+            # Uložíme data z formulářových proměnných do lokální paměti dat
+            data["nastaveni"]["real_mistr"] = st.session_state["form_adm_mistr"]
+            data["nastaveni"]["real_semifinale"] = [
+                st.session_state["form_adm_semi1"],
+                st.session_state["form_adm_semi2"],
+                st.session_state["form_adm_semi3"],
+                st.session_state["form_adm_semi4"]
+            ]
+            data["nastaveni"]["real_cesko"] = st.session_state["form_adm_cesko"]
+            data["nastaveni"]["real_mvp"] = st.session_state["form_adm_mvp"]
+            data["nastaveni"]["real_goly"] = int(st.session_state["form_adm_goly"])
             
+            # Zápis do Google Sheets
             uloz_do_google_sheets(data)
+            
             st.success("Celoturnajové výsledky byly bezpečně uloženy na Disk a žebříček byl přepočítán!")
-            time.sleep(0.5)
+            time.sleep(0.7)
             st.rerun()
 
 # --- 6. ADMIN ZÁLOŽKA: EXCEL MATICE STATISTIK ČR ---

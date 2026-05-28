@@ -543,38 +543,86 @@ if volba == "Žebříček hráčů 🏒":
             medaile = "🥇" if idx == 0 else "🥈" if idx == 1 else "🥉" if idx == 2 else "🔵"
             st.markdown(f"<div style='background-color: rgba(30,61,89,0.05); padding: 8px; border-radius: 6px; margin-bottom: 4px; display: flex; justify-content: space-between;'><b>{medaile} {idx+1}. {p['jmeno']}</b><span><b>{p['body']} B</b> (🎯 {p['presne']}x)</span></div>", unsafe_allow_html=True)
             
-        st.write("")
-        with st.expander("🔍 Rozbalit detailní bodování hráčů (zápas po zápase)"):
-            vybrany_hrac = st.selectbox("Vyber hráče pro detail bodů:", HRACI)
-            if vybrany_hrac:
-                zapas_body = {}
-                for z in ZAPASY:
-                    z_id = str(z["id"])
-                    res = data["vysledky"].get(z_id)
-                    tip = data["tipy"][vybrany_hrac].get(z_id)
-                    zolik = data["zolici"][vybrany_hrac].get(z_id, False)
-                    if res and tip and tip["d"] is not None and tip["h"] is not None:
-                        b, _ = spocitej_body_hrace(tip["d"], tip["h"], res["d"], res["h"], zolik, bool(res.get("pp_sn", False)))
-                        zapas_body[int(z_id)] = b
-                    else:
-                        zapas_body[int(z_id)] = 0
-                radky_list = []
-                for r in range(1, 9):
-                    radek = {}
-                    for c in range(7):
-                        z_index = r + (c * 8)
-                        if z_index <= len(ZAPASY):
-                            z_info = ZAPASY[z_index - 1]
-                            tymy = f"{z_info['domaci'][0:3]}. - {z_info['hoste'][0:3]}."
-                            radek[f"Zápas (sk. {c+1})"] = f"Z{z_index} ({tymy})"
-                            radek[f"Body (sk. {c+1})"] = f"{zapas_body.get(z_index, 0)} b"
-                        else:
-                            radek[f"Zápas (sk. {c+1})"] = "-"
-                            radek[f"Body (sk. {c+1})"] = "-"
-                    radky_list.append(radek)
-                df_detail = pd.DataFrame(radky_list)
-                st.dataframe(df_detail, use_container_width=True, hide_index=True)
+        st.write("---")
+        
+        # --- ✨ NOVÁ VELKÁ PŘEHLEDOVÁ MATICE (VŠECHNY ZÁPASY + PLAY-OFF + CELKOVÉ) ---
+        st.write("### 📈 Detailní přehled získaných bodů zápas po zápase")
+        st.info("Sloupec se jmény hráčů je vlevo ukotvený. Posunem doprava uvidíš zápasy play-off a celoturnajové body.")
+        
+        # Načtení reality pro dlouhodobé tipy, aby se body správně spočítaly do sloupce
+        real_mistr = data.get("nastaveni", {}).get("real_mistr", "").strip().lower()
+        real_semi = [str(s).strip().lower() for s in data.get("nastaveni", {}).get("real_semifinale", ["", "", "", ""])]
+        real_cesko = data.get("nastaveni", {}).get("real_cesko", "Základní skupina")
+        real_mvp = data.get("nastaveni", {}).get("real_mvp", "").strip().lower()
+        try:
+            real_goly = int(data.get("nastaveni", {}).get("real_goly", 0))
+        except:
+            real_goly = 0
+
+        prehled_bodu_data = []
+
+        for hrac in HRACI:
+            radek_hrace = {"Hráč": hrac}
+            
+            # 1. Část: Dynamicky projde VŠECHNY zápasy (skupiny 1-56 i play-off 101+)
+            for z in ZAPASY:
+                z_id = z["id"]
+                body_za_zapas = 0
                 
+                # Vyzkoušíme bezpečně int i str verzi ID (klasická pojistka)
+                res = data["vysledky"].get(str(z_id)) or data["vysledky"].get(int(z_id))
+                tip = data["tipy"][hrac].get(str(z_id)) or data["tipy"][hrac].get(int(z_id))
+                zolik = data["zolici"][hrac].get(str(z_id), False) or data["zolici"][hrac].get(int(z_id), False)
+                
+                if res and tip and tip.get("d") is not None and tip.get("h") is not None:
+                    if res.get("d") is not None and res.get("h") is not None:
+                        body_za_zapas, _ = spocitej_body_hrace(
+                            tip["d"], tip["h"], res["d"], res["h"], zolik, bool(res.get("pp_sn", False))
+                        )
+                
+                # Sestavení krátkého záhlaví sloupce (např. "Z1 (FIN-NĚM)" nebo play-off "Z101 (CZE-USA)")
+                prefix = f"Z{z_id}"
+                tymy_zkratka = f"{z['domaci'][0:3]}-{z['hoste'][0:3]}"
+                nazev_sloupce = f"{prefix} ({tymy_zkratka})"
+                
+                radek_hrace[nazev_sloupce] = body_za_zapas
+
+            # 2. Část: Spočítá body za celoturnajové tipy
+            body_celkove = 0
+            ct = data.get("celkove_tipy", {}).get(hrac, {})
+            
+            if real_mistr and ct.get("mistr", "").strip().lower() == real_mistr: body_celkove += 20
+            
+            hrac_semi = [str(s).strip().lower() for s in ct.get("semifinale", ["", "", "", ""])]
+            for tym in hrac_semi:
+                if tym and tym in real_semi: body_celkove += 10
+                    
+            if real_cesko and ct.get("cesko") == real_cesko: body_celkove += 20
+                
+            tip_mvp = ct.get("mvp", "").strip().lower()
+            if real_mvp and tip_mvp and (real_mvp in tip_mvp or tip_mvp in real_mvp): body_celkove += 20
+                
+            try:
+                tip_goly = int(ct.get("goly", 0))
+            except:
+                tip_goly = 0
+            if real_goly > 0 and tip_goly > 0:
+                if tip_goly == real_goly: body_celkove += 20
+                elif abs(tip_goly - real_goly) <= 3: body_celkove += 10
+            
+            # Přidání sloupce s dlouhodobými bonusy na úplný konec řádku
+            radek_hrace["🔮 Celoturnajové body"] = body_celkove
+            prehled_bodu_data.append(radek_hrace)
+
+        # Převod na DataFrame a vykreslení matice
+        df_kompletni_prehled = pd.DataFrame(prehled_bodu_data)
+        
+        st.dataframe(
+            df_kompletni_prehled, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={"Hráč": st.column_config.TextColumn("Hráč", pinned=True)}
+        )                
         st.write("---")
         st.subheader("📊 Statistiky MS v hokeji")
         c1, c2 = st.columns(2)

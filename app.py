@@ -132,6 +132,34 @@ ZAPASY = [
         "domaci": "Norsko", 
         "hoste": "Lotyšsko"
     },
+    {
+        "id": "61", 
+        "den": "30. 5. (Sobota) - Semifinále", 
+        "datum": "15:20", 
+        "domaci": "Švýcarsko", 
+        "hoste": "Norsko"
+    },
+    {
+        "id": "62", 
+        "den": "30. 5. (Sobota) - Semifinále", 
+        "datum": "20:00", 
+        "domaci": "Kanada", 
+        "hoste": "Finsko"
+    },
+    {
+        "id": "63", 
+        "den": "31. 5. (Neděle) - O bronz", 
+        "datum": "16:20", 
+        "domaci": "SemiA", 
+        "hoste": "SemiB"
+    },
+    {
+        "id": "64", 
+        "den": "31. 5. (Neděle) - Finále", 
+        "datum": "20:20", 
+        "domaci": "SemiA", 
+        "hoste": "SemiB"
+    }
 ]
 
 DNY = []

@@ -810,42 +810,42 @@ elif volba == "Moje tipy (Zápasy) 📝":
                 st.success("Tipy pro vybraný den uloženy do Google Tabulky!")
                 time.sleep(0.5)
                 st.rerun()
-        """
-        # --- DYNAMICKÁ TABULKA MVP S AKTUÁLNÍMI STATISTIKAMI ---
-        st.write("### 🏒 Jak si vedou vaši favorité na nejužitečnějšího hráče (MVP)?")
         
-        mvp_radky = []
-        for hrac in HRACI:
-            natipovane_mvp = data.get("celkove_tipy", {}).get(hrac, {}).get("mvp", "-").strip()
-            stats_hledaneho_hrace = "-"
-            if natipovane_mvp != "-":
-                nalezeny_hrac_na_soupisce = None
-                for c_hrac in SOUPISKA_CR:
-                    if c_hrac.lower() in natipovane_mvp.lower() or natipovane_mvp.lower() in c_hrac.lower():
-                        nalezeny_hrac_na_soupisce = c_hrac
-                        break
+        # # --- DYNAMICKÁ TABULKA MVP S AKTUÁLNÍMI STATISTIKAMI ---
+        # st.write("### 🏒 Jak si vedou vaši favorité na nejužitečnějšího hráče (MVP)?")
+        
+        # mvp_radky = []
+        # for hrac in HRACI:
+        #     natipovane_mvp = data.get("celkove_tipy", {}).get(hrac, {}).get("mvp", "-").strip()
+        #     stats_hledaneho_hrace = "-"
+        #     if natipovane_mvp != "-":
+        #         nalezeny_hrac_na_soupisce = None
+        #         for c_hrac in SOUPISKA_CR:
+        #             if c_hrac.lower() in natipovane_mvp.lower() or natipovane_mvp.lower() in c_hrac.lower():
+        #                 nalezeny_hrac_na_soupisce = c_hrac
+        #                 break
                 
-                if nalezeny_hrac_na_soupisce and not df_statistiky.empty:
-                    hrac_row = df_statistiky[df_statistiky["Hráč"] == nalezeny_hrac_na_soupisce]
-                    if not hrac_row.empty:
-                        goly = int(hrac_row.iloc[0]["Celkem Góly"])
-                        asistence = int(hrac_row.iloc[0]["Celkem Asistence"])
-                        body = int(hrac_row.iloc[0]["Celkem Body (G+A)"])
-                        stats_hledaneho_hrace = f"⭐ {goly} + {asistence} = {body} b."
-                    else:
-                        stats_hledaneho_hrace = "0 + 0 = 0 b."
-                else:
-                    stats_hledaneho_hrace = "0 + 0 = 0 b. (mimo soupisku ČR)"
+        #         if nalezeny_hrac_na_soupisce and not df_statistiky.empty:
+        #             hrac_row = df_statistiky[df_statistiky["Hráč"] == nalezeny_hrac_na_soupisce]
+        #             if not hrac_row.empty:
+        #                 goly = int(hrac_row.iloc[0]["Celkem Góly"])
+        #                 asistence = int(hrac_row.iloc[0]["Celkem Asistence"])
+        #                 body = int(hrac_row.iloc[0]["Celkem Body (G+A)"])
+        #                 stats_hledaneho_hrace = f"⭐ {goly} + {asistence} = {body} b."
+        #             else:
+        #                 stats_hledaneho_hrace = "0 + 0 = 0 b."
+        #         else:
+        #             stats_hledaneho_hrace = "0 + 0 = 0 b. (mimo soupisku ČR)"
             
-            mvp_radky.append({
-                "Tipující parťák": hrac,
-                "Jeho celkový tip na MVP": natipovane_mvp,
-                "Aktuální bilance v turnaji (G+A=B)": stats_hledaneho_hrace
-            })
+        #     mvp_radky.append({
+        #         "Tipující parťák": hrac,
+        #         "Jeho celkový tip na MVP": natipovane_mvp,
+        #         "Aktuální bilance v turnaji (G+A=B)": stats_hledaneho_hrace
+        #     })
             
-        df_mvp_srovnani = pd.DataFrame(mvp_radky)
-        st.dataframe(df_mvp_srovnani, use_container_width=True, hide_index=True)
-        """
+        # df_mvp_srovnani = pd.DataFrame(mvp_radky)
+        # st.dataframe(df_mvp_srovnani, use_container_width=True, hide_index=True)
+        
         pass
 
 # --- 3. ZÁLOŽKA: CELOTURNAJOVÉ TIPY ---

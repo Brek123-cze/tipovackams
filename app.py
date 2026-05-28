@@ -810,7 +810,7 @@ elif volba == "Moje tipy (Zápasy) 📝":
                 st.success("Tipy pro vybraný den uloženy do Google Tabulky!")
                 time.sleep(0.5)
                 st.rerun()
-
+"""
         # --- DYNAMICKÁ TABULKA MVP S AKTUÁLNÍMI STATISTIKAMI ---
         st.write("### 🏒 Jak si vedou vaši favorité na nejužitečnějšího hráče (MVP)?")
         
@@ -845,6 +845,7 @@ elif volba == "Moje tipy (Zápasy) 📝":
             
         df_mvp_srovnani = pd.DataFrame(mvp_radky)
         st.dataframe(df_mvp_srovnani, use_container_width=True, hide_index=True)
+    """
 
 # --- 3. ZÁLOŽKA: CELOTURNAJOVÉ TIPY ---
 elif volba == "Celoturnajové tipy 🏆":

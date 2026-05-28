@@ -354,6 +354,9 @@ def generuj_tabulky_ms(data_turnaje):
     celkem_golu = 0
     
     for z in ZAPASY:
+        if "skupina" not in z or not z["skupina"]:
+            continue
+        
         z_id = z["id"]
         if z_id in data_turnaje["vysledky"]:
             res = data_turnaje["vysledky"][z_id]

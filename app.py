@@ -536,6 +536,8 @@ if volba == "Žebříček hráčů 🏒":
     c_l, c_main, c_r = st.columns([1, 4, 1])
     with c_main:
         st.title("🏆 Průběžný žebříček tipovačky")
+        
+        # 1. HLAVNÍ GRAFICKÝ ŽEBŘÍČEK (Stále viditelný navrchu)
         zebricek = [{"jmeno": h, "body": v["body"], "presne": v["presne"]} for h, v in statistiky_hracu.items()]
         zebricek = sorted(zebricek, key=lambda x: (x["body"], x["presne"]), reverse=True)
         
@@ -544,138 +546,99 @@ if volba == "Žebříček hráčů 🏒":
             st.markdown(f"<div style='background-color: rgba(30,61,89,0.05); padding: 8px; border-radius: 6px; margin-bottom: 4px; display: flex; justify-content: space-between;'><b>{medaile} {idx+1}. {p['jmeno']}</b><span><b>{p['body']} B</b> (🎯 {p['presne']}x)</span></div>", unsafe_allow_html=True)
             
         st.write("---")
-        
-        # --- ✨ NOVÁ VELKÁ PŘEHLEDOVÁ MATICE (VŠECHNY ZÁPASY + PLAY-OFF + CELKOVÉ) ---
-        st.write("### 📈 Detailní přehled získaných bodů zápas po zápase")
-        st.info("Sloupec se jmény hráčů je vlevo ukotvený. Posunem doprava uvidíš zápasy play-off a celoturnajové body.")
-        
-        # Načtení reality pro dlouhodobé tipy, aby se body správně spočítaly do sloupce
-        real_mistr = data.get("nastaveni", {}).get("real_mistr", "").strip().lower()
-        real_semi = [str(s).strip().lower() for s in data.get("nastaveni", {}).get("real_semifinale", ["", "", "", ""])]
-        real_cesko = data.get("nastaveni", {}).get("real_cesko", "Základní skupina")
-        real_mvp = data.get("nastaveni", {}).get("real_mvp", "").strip().lower()
-        try:
-            real_goly = int(data.get("nastaveni", {}).get("real_goly", 0))
-        except:
-            real_goly = 0
+        st.write("### 🔍 Podrobné statistiky a přehledy turnaje")
 
-        prehled_bodu_data = []
-
-        for hrac in HRACI:
-            radek_hrace = {"Hráč": hrac}
-            
-            # 1. Část: Dynamicky projde VŠECHNY zápasy (skupiny 1-56 i play-off 101+)
-            for z in ZAPASY:
-                z_id = z["id"]
-                body_za_zapas = 0
-                
-                # Vyzkoušíme bezpečně int i str verzi ID (klasická pojistka)
-                res = data["vysledky"].get(str(z_id)) or data["vysledky"].get(int(z_id))
-                tip = data["tipy"][hrac].get(str(z_id)) or data["tipy"][hrac].get(int(z_id))
-                zolik = data["zolici"][hrac].get(str(z_id), False) or data["zolici"][hrac].get(int(z_id), False)
-                
-                if res and tip and tip.get("d") is not None and tip.get("h") is not None:
-                    if res.get("d") is not None and res.get("h") is not None:
-                        body_za_zapas, _ = spocitej_body_hrace(
-                            tip["d"], tip["h"], res["d"], res["h"], zolik, bool(res.get("pp_sn", False))
-                        )
-                
-                # Sestavení krátkého záhlaví sloupce (např. "Z1 (FIN-NĚM)" nebo play-off "Z101 (CZE-USA)")
-                prefix = f"Z{z_id}"
-                tymy_zkratka = f"{z['domaci'][0:3]}-{z['hoste'][0:3]}"
-                nazev_sloupce = f"{prefix} ({tymy_zkratka})"
-                
-                radek_hrace[nazev_sloupce] = body_za_zapas
-
-            # 2. Část: Spočítá body za celoturnajové tipy
-            body_celkove = 0
-            ct = data.get("celkove_tipy", {}).get(hrac, {})
-            
-            if real_mistr and ct.get("mistr", "").strip().lower() == real_mistr: body_celkove += 20
-            
-            hrac_semi = [str(s).strip().lower() for s in ct.get("semifinale", ["", "", "", ""])]
-            for tym in hrac_semi:
-                if tym and tym in real_semi: body_celkove += 10
-                    
-            if real_cesko and ct.get("cesko") == real_cesko: body_celkove += 20
-                
-            tip_mvp = ct.get("mvp", "").strip().lower()
-            if real_mvp and tip_mvp and (real_mvp in tip_mvp or tip_mvp in real_mvp): body_celkove += 20
-                
+        # =========================================================================
+        # 📦 EXPANDER 1: DETAILNÍ BODOVÁNÍ TIPÉRU (ZÁPAS PO ZÁPASE)
+        # =========================================================================
+        with st.expander("📊 Rozbalit detailní přehled bodů (zápas po zápase)"):
+            real_mistr = data.get("nastaveni", {}).get("real_mistr", "").strip().lower()
+            real_semi = [str(s).strip().lower() for s in data.get("nastaveni", {}).get("real_semifinale", ["", "", "", ""])]
+            real_cesko = data.get("nastaveni", {}).get("real_cesko", "Základní skupina")
+            real_mvp = data.get("nastaveni", {}).get("real_mvp", "").strip().lower()
             try:
-                tip_goly = int(ct.get("goly", 0))
+                real_goly = int(data.get("nastaveni", {}).get("real_goly", 0))
             except:
-                tip_goly = 0
-            if real_goly > 0 and tip_goly > 0:
-                if tip_goly == real_goly: body_celkove += 20
-                elif abs(tip_goly - real_goly) <= 3: body_celkove += 10
-            
-            # Přidání sloupce s dlouhodobými bonusy na úplný konec řádku
-            radek_hrace["🔮 Celoturnajové body"] = body_celkove
-            prehled_bodu_data.append(radek_hrace)
+                real_goly = 0
 
-        # Převod na DataFrame a vykreslení matice
-        df_kompletni_prehled = pd.DataFrame(prehled_bodu_data)
-        
-        st.dataframe(
-            df_kompletni_prehled, 
-            use_container_width=True, 
-            hide_index=True,
-            column_config={"Hráč": st.column_config.TextColumn("Hráč", pinned=True)}
-        )                
-        st.write("---")
-        st.subheader("📊 Statistiky MS v hokeji")
-        c1, c2 = st.columns(2)
-        with c1:
-            st.write("**Skupina A**")
-            st.dataframe(sorted_skupina_a, hide_index=True, use_container_width=True)
-        with c2:
-            st.write("**Skupina B**")
-            st.dataframe(sorted_skupina_b, hide_index=True, use_container_width=True)
-            
-        st.info(f"🚨 **Celkový počet gólů vstřelených na celém šampionátu:** {celkove_goly_ms} gólů")
-        st.success(f"🌟 **Nejlepší střelec / lídr bodování ČR:** {nejlepsi_cesi_output}")
-               
-            
-        # --- NOVÁ DYNAMICKÁ TABULKA MVP S AKTUÁLNÍMI STATISTIKAMI ---
-        st.write("### 🏒 Jak si vedou vaši favorité na nejužitečnějšího hráče?")
-        
-        mvp_radky = []
-        for hrac in HRACI:
-            # Načteme dlouhodobý tip na MVP od konkrétního tipujícího
-            natipovane_mvp = data.get("celkove_tipy", {}).get(hrac, {}).get("mvp", "-").strip()
-            
-            # Pokusíme se najít tohoto zapsaného hráče v naší matici statistik
-            stats_hledaneho_hrace = "-"
-            if natipovane_mvp != "-":
-                # Prohledáme soupisku, jestli zadaný text sedí (např. obsahuje příjmení)
-                nalezeny_hrac_na_soupisce = None
-                for c_hrac in SOUPISKA_CR:
-                    if c_hrac.lower() in natipovane_mvp.lower() or natipovane_mvp.lower() in c_hrac.lower():
-                        nalezeny_hrac_na_soupisce = c_hrac
-                        break
+            prehled_bodu_data = []
+
+            for hrac in HRACI:
+                radek_hrace = {"Hráč": hrac}
+                for z in ZAPASY:
+                    z_id = z["id"]
+                    body_za_zapas = 0
+                    
+                    res = data["vysledky"].get(str(z_id)) or data["vysledky"].get(int(z_id))
+                    tip = data["tipy"][hrac].get(str(z_id)) or data["tipy"][hrac].get(int(z_id))
+                    zolik = data["zolici"][hrac].get(str(z_id), False) or data["zolici"][hrac].get(int(z_id), False)
+                    
+                    if res and tip and tip.get("d") is not None and tip.get("h") is not None:
+                        if res.get("d") is not None and res.get("h") is not None:
+                            body_za_zapas, _ = spocitej_body_hrace(
+                                tip["d"], tip["h"], res["d"], res["h"], zolik, bool(res.get("pp_sn", False))
+                            )
+                    
+                    prefix = f"Z{z_id}"
+                    tymy_zkratka = f"{z['domaci'][0:3]}-{z['hoste'][0:3]}"
+                    nazev_sloupce = f"{prefix} ({tymy_zkratka})"
+                    radek_hrace[nazev_sloupce] = body_za_zapas
+
+                body_celkove = 0
+                ct = data.get("celkove_tipy", {}).get(hrac, {})
+                if real_mistr and ct.get("mistr", "").strip().lower() == real_mistr: body_celkove += 20
+                hrac_semi = [str(s).strip().lower() for s in ct.get("semifinale", ["", "", "", ""])]
+                for tym in hrac_semi:
+                    if tym and tym in real_semi: body_celkove += 10
+                if real_cesko and ct.get("cesko") == real_cesko: body_celkove += 20
+                tip_mvp = ct.get("mvp", "").strip().lower()
+                if real_mvp and tip_mvp and (real_mvp in tip_mvp or tip_mvp in real_mvp): body_celkove += 20
+                try:
+                    tip_goly = int(ct.get("goly", 0))
+                except:
+                    tip_goly = 0
+                if real_goly > 0 and tip_goly > 0:
+                    if tip_goly == real_goly: body_celkove += 20
+                    elif abs(tip_goly - real_goly) <= 3: body_celkove += 10
                 
-                # Pokud jsme hráče našli, vytáhneme z df_statistiky jeho reálná čísla
-                if nalezeny_hrac_na_soupisce and not df_statistiky.empty:
-                    hrac_row = df_statistiky[df_statistiky["Hráč"] == nalezeny_hrac_na_soupisce]
-                    if not hrac_row.empty:
-                        goly = int(hrac_row.iloc[0]["Celkem Góly"])
-                        asistence = int(hrac_row.iloc[0]["Celkem Asistence"])
-                        body = int(hrac_row.iloc[0]["Celkem Body (G+A)"])
-                        stats_hledaneho_hrace = f"⭐ {goly} + {asistence} = {body} b."
-                    else:
-                        stats_hledaneho_hrace = "0 + 0 = 0 b."
-                else:
-                    stats_hledaneho_hrace = "0 + 0 = 0 b. (mimo soupisku ČR)"
+                radek_hrace["🔮 Celoturnajové body"] = body_celkove
+                prehled_bodu_data.append(radek_hrace)
+
+            df_kompletni_prehled = pd.DataFrame(prehled_bodu_data)
+            st.dataframe(
+                df_kompletni_prehled, 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={"Hráč": st.column_config.TextColumn("Hráč", pinned=True)}
+            )
+
+        # =========================================================================
+        # 📦 EXPANDER 2: TABULKY ZÁKLADNÍCH SKUPIN A a B
+        # =========================================================================
+        with st.expander("📉 Rozbalit konečné tabulky základních skupin (A a B)"):
+            # Generování tabulek (voláme tvou stávající funkci, play-off zápasy už bezpečně ignoruje)
+            sorted_skupina_a, sorted_skupina_b, celkove_goly_ms = generuj_tabulky_ms(data)
             
-            mvp_radky.append({
-                "Tipující parťák": hrac,
-                "Jeho celkový tip na MVP": natipovane_mvp,
-                "Aktuální bilance v turnaji (G+A=B)": stats_hledaneho_hrace
-            })
-            
-        df_mvp_srovnani = pd.DataFrame(mvp_radky)
-        st.dataframe(df_mvp_srovnani, use_container_width=True, hide_index=True)
+            col_skA, col_skB = st.columns(2)
+            with col_skA:
+                st.write("#### Skupina A")
+                st.dataframe(sorted_skupina_a, use_container_width=True, hide_index=True)
+            with col_skB:
+                st.write("#### Skupina B")
+                st.dataframe(sorted_skupina_b, use_container_width=True, hide_index=True)
+            st.caption(f"Celkový počet gólů v základních skupinách: **{celkove_goly_ms}**")
+
+        # =========================================================================
+        # 📦 EXPANDER 3: TABULKA STŘELCŮ A KANADSKÉHO BODOVÁNÍ ČR
+        # =========================================================================
+        with st.expander("🏒 Rozbalit kanadské bodování a střelce reprezentace ČR"):
+            if not df_statistiky.empty:
+                # Seřadíme hráče podle celkových bodů a pak podle gólů dolů
+                df_strelci_zobrazeni = df_statistiky.sort_values(by=["Celkem Body (G+A)", "Celkem Góly"], ascending=False)
+                st.dataframe(df_strelci_zobrazeni, use_container_width=True, hide_index=True)
+            else:
+                st.info("Tabulka statistik je momentálně prázdná.")
+
 
 # --- 2. ZÁLOŽKA: MOJE TIPY (ZÁPASY) ---
 elif volba == "Moje tipy (Zápasy) 📝":

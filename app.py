@@ -481,8 +481,8 @@ for hrac in HRACI:
                 if p: statistiky_hracu[hrac]["presne"] += 1
 
 # --- ✨ NOVINKA: PŘIČTENÍ BODŮ ZA CELOTURNAJOVÉ TIPY ---
-# Nejdříve načteme reálné výsledky turnaje zadané adminem (pokud už existují)
-# ✨ NOVÉ NAČÍTÁNÍ Z BEZPEČNÉHO UMÍSTĚNÍ V DATABÁZI
+# --- ✨ NOVINKA: PŘIČTENÍ BODŮ ZA CELOTURNAJOVÉ TIPY ---
+# Načítáme z nového neprůstřelného umístění ve "vysledky"
 real_mistr = data.get("vysledky", {}).get("MS_REAL_MISTR", {}).get("hodnota", "").strip().lower()
 real_semi = [
     str(data.get("vysledky", {}).get("MS_REAL_SEMI1", {}).get("hodnota", "")).strip().lower(),
@@ -494,10 +494,6 @@ real_cesko = data.get("vysledky", {}).get("MS_REAL_CESKO", {}).get("hodnota", "Z
 real_mvp = data.get("vysledky", {}).get("MS_REAL_MVP", {}).get("hodnota", "").strip().lower()
 try:
     real_goly = int(data.get("vysledky", {}).get("MS_REAL_GOLY", {}).get("hodnota", 0))
-except:
-    real_goly = 0
-try:
-    real_goly = int(data.get("nastaveni", {}).get("real_goly", 0))
 except:
     real_goly = 0
 

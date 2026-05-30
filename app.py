@@ -1108,32 +1108,31 @@ elif volba == "Správa nastavení a zámků ⚙️" and current_user == "admin":
 
     st.write("---")
     
-    st.subheader("🏆 Vyhodnocení celoturnajových výsledků (Zadává admin na konci MS)")
+   st.subheader("🏆 Vyhodnocení celoturnajových výsledků (Zadává admin na konci MS)")
     st.info("Jakmile sem vyplníš oficiální výsledky šampionátu, aplikace automaticky spočítá dlouhodobé body a přičte je všem do tabulky.")
 
-    # Inicializace sekce v nastavení, pokud neexistuje
-    if "nastaveni" not in data:
-        data["nastaveni"] = {}
+    # Inicializace sekce výsledků, pokud by náhodou chyběla
+    if "vysledky" not in data:
+        data["vysledky"] = {}
 
-    # Načtení starých zadaných výsledků (aby tam nezmizely)
-    st_mistr = data["nastaveni"].get("real_mistr", "")
-    st_semi = data["nastaveni"].get("real_semifinale", ["", "", "", ""])
-    while len(st_semi) < 4: st_semi.append("")
-    st_cesko = data["nastaveni"].get("real_cesko", "Základní skupina")
-    st_mvp = data["nastaveni"].get("real_mvp", "")
-    st_goly = data["nastaveni"].get("real_goly", 0)
+    # ✨ ZMĚNA: Načítáme data ze stávajícího slovníku "vysledky" pod speciálními textovými klíči
+    st_mistr = data["vysledky"].get("MS_REAL_MISTR", {}).get("hodnota", "")
+    st_semi1 = data["vysledky"].get("MS_REAL_SEMI1", {}).get("hodnota", "")
+    st_semi2 = data["vysledky"].get("MS_REAL_SEMI2", {}).get("hodnota", "")
+    st_semi3 = data["vysledky"].get("MS_REAL_SEMI3", {}).get("hodnota", "")
+    st_semi4 = data["vysledky"].get("MS_REAL_SEMI4", {}).get("hodnota", "")
+    st_cesko = data["vysledky"].get("MS_REAL_CESKO", {}).get("hodnota", "Základní skupina")
+    st_mvp = data["vysledky"].get("MS_REAL_MVP", {}).get("hodnota", "")
+    st_goly = data["vysledky"].get("MS_REAL_GOLY", {}).get("hodnota", 0)
 
-    # ✨ OPRAVA: Formulář zpracujeme pomocí session_state přes widget klíče, 
-    # nebo rovnou načteme hodnoty správně po kliknutí.
     with st.form("admin_celkove_vyhodnoceni_form"):
-        # Přidali jsme unikátní 'key' pro každé pole, aby si Streamlit hodnotu udržel při odeslání
-        adm_mistr = st.text_input("Oficiální MISTR SVÊTA 🥇", value=st_mistr, key="form_adm_mistr")
+        adm_mistr = st.text_input("Oficiální MISTR SVĚTA 🥇", value=st_mistr, key="form_adm_mistr")
         
         st.write("**Oficiální 4 semifinalisté (týmy, které hrály o medaile):**")
-        adm_semi1 = st.text_input("Semifinalista 1", value=st_semi[0], key="form_adm_semi1")
-        adm_semi2 = st.text_input("Semifinalista 2", value=st_semi[1], key="form_adm_semi2")
-        adm_semi3 = st.text_input("Semifinalista 3", value=st_semi[2], key="form_adm_semi3")
-        adm_semi4 = st.text_input("Semifinalista 4", value=st_semi[3], key="form_adm_semi4")
+        adm_semi1 = st.text_input("Semifinalista 1", value=st_semi1, key="form_adm_semi1")
+        adm_semi2 = st.text_input("Semifinalista 2", value=st_semi2, key="form_adm_semi2")
+        adm_semi3 = st.text_input("Semifinalista 3", value=st_semi3, key="form_adm_semi3")
+        adm_semi4 = st.text_input("Semifinalista 4", value=st_semi4, key="form_adm_semi4")
         
         faze_options = ["Základní skupina", "Čtvrtfinále", "Semifinále", "Bronz", "Stříbro", "Zlato 🥇"]
         if st_cesko not in faze_options: st_cesko = "Základní skupina"
@@ -1144,22 +1143,19 @@ elif volba == "Správa nastavení a zámků ⚙️" and current_user == "admin":
         
         ulozit_vysledky_ms = st.form_submit_button("Uložit oficiální výsledky a připočíst body 🔄")
 
-    # Vyhodnocení odeslání formuláře
     if ulozit_vysledky_ms:
         with st.spinner("Ukládám celkové výsledky a přepočítávám body..."):
-            # Uložíme data z formulářových proměnných do lokální paměti dat
-            data["nastaveni"]["real_mistr"] = st.session_state["form_adm_mistr"]
-            data["nastaveni"]["real_semifinale"] = [
-                st.session_state["form_adm_semi1"],
-                st.session_state["form_adm_semi2"],
-                st.session_state["form_adm_semi3"],
-                st.session_state["form_adm_semi4"]
-            ]
-            data["nastaveni"]["real_cesko"] = st.session_state["form_adm_cesko"]
-            data["nastaveni"]["real_mvp"] = st.session_state["form_adm_mvp"]
-            data["nastaveni"]["real_goly"] = int(st.session_state["form_adm_goly"])
+            # Zapíšeme data do "vysledky" struktury, kterou tvoje funkce umí bezpečně uložit do Google Sheets
+            data["vysledky"]["MS_REAL_MISTR"] = {"d": 0, "h": 0, "vyhodnoceno": True, "hodnota": st.session_state["form_adm_mistr"]}
+            data["vysledky"]["MS_REAL_SEMI1"] = {"d": 0, "h": 0, "vyhodnoceno": True, "hodnota": st.session_state["form_adm_semi1"]}
+            data["vysledky"]["MS_REAL_SEMI2"] = {"d": 0, "h": 0, "vyhodnoceno": True, "hodnota": st.session_state["form_adm_semi2"]}
+            data["vysledky"]["MS_REAL_SEMI3"] = {"d": 0, "h": 0, "vyhodnoceno": True, "hodnota": st.session_state["form_adm_semi3"]}
+            data["vysledky"]["MS_REAL_SEMI4"] = {"d": 0, "h": 0, "vyhodnoceno": True, "hodnota": st.session_state["form_adm_semi4"]}
+            data["vysledky"]["MS_REAL_CESKO"] = {"d": 0, "h": 0, "vyhodnoceno": True, "hodnota": st.session_state["form_adm_cesko"]}
+            data["vysledky"]["MS_REAL_MVP"] = {"d": 0, "h": 0, "vyhodnoceno": True, "hodnota": st.session_state["form_adm_mvp"]}
+            data["vysledky"]["MS_REAL_GOLY"] = {"d": 0, "h": 0, "vyhodnoceno": True, "hodnota": int(st.session_state["form_adm_goly"])}
             
-            # Zápis do Google Sheets
+            # Zavoláme tvou standardní funkci – ta teď uvidí nové klíče v sekci výsledků a zapíše je do tabulky
             uloz_do_google_sheets(data)
             
             st.success("Celoturnajové výsledky byly bezpečně uloženy na Disk a žebříček byl přepočítán!")

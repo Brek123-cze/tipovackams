@@ -293,7 +293,26 @@ def uloz_do_google_sheets(aktualni_data):
     })
     
     for k, v in aktualni_data["vysledky"].items():
-        rows.append({"Klíč": f"vysledky_{k}", "Hodnota1": int(v["d"]), "Hodnota2": int(v["h"]), "Hodnota3": int(v["pp_sn"])})
+        if str(k).startswith("MS_REAL_"):
+            rows.append({
+                "Klíč": f"vysledky_{k}", 
+                "Hodnota1": str(v.get("hodnota", "")), 
+                "Hodnota2": "", 
+                "Hodnota3": ""
+            })
+        else:
+            # Pro běžné hokejové zápasy zachováme původní chování, ale s pojistkou .get()
+            goly_d = int(v.get("d", 0)) if v.get("d") is not None else 0
+            goly_h = int(v.get("h", 0)) if v.get("h") is not None else 0
+            # Pokud pp_sn chybí, dosadí se bezpečně 0 (False)
+            pp_sn_hodnota = int(v.get("pp_sn", 0)) if v.get("pp_sn") is not None else 0
+            
+            rows.append({
+                "Klíč": f"vysledky_{k}", 
+                "Hodnota1": goly_d, 
+                "Hodnota2": goly_h, 
+                "Hodnota3": pp_sn_hodnota
+            })
         
     for hrac in HRACI:
         for z_id, v in aktualni_data["tipy"][hrac].items():

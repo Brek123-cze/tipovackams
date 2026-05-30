@@ -150,15 +150,15 @@ ZAPASY = [
         "id": "63", 
         "den": "31. 5. (Neděle) - O bronz", 
         "datum": "16:20", 
-        "domaci": "SemiA", 
-        "hoste": "SemiB"
+        "domaci": "Norsko", 
+        "hoste": "Kanada"
     },
     {
         "id": "64", 
         "den": "31. 5. (Neděle) - Finále", 
         "datum": "20:20", 
-        "domaci": "SemiA", 
-        "hoste": "SemiB"
+        "domaci": "Švýcarsko", 
+        "hoste": "Finsko"
     }
 ]
 

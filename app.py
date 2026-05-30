@@ -1108,7 +1108,7 @@ elif volba == "Správa nastavení a zámků ⚙️" and current_user == "admin":
 
     st.write("---")
     
-   st.subheader("🏆 Vyhodnocení celoturnajových výsledků (Zadává admin na konci MS)")
+    st.subheader("🏆 Vyhodnocení celoturnajových výsledků (Zadává admin na konci MS)")
     st.info("Jakmile sem vyplníš oficiální výsledky šampionátu, aplikace automaticky spočítá dlouhodobé body a přičte je všem do tabulky.")
 
     # Inicializace sekce výsledků, pokud by náhodou chyběla

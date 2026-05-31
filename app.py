@@ -148,14 +148,14 @@ ZAPASY = [
     },
     {
         "id": "63", 
-        "den": "31. 5. (Neděle) - O bronz", 
+        "den": "31. 5. (Neděle) - Medaile", 
         "datum": "16:20", 
         "domaci": "Norsko", 
         "hoste": "Kanada"
     },
     {
         "id": "64", 
-        "den": "31. 5. (Neděle) - Finále", 
+        "den": "31. 5. (Neděle) - Medaile", 
         "datum": "20:20", 
         "domaci": "Švýcarsko", 
         "hoste": "Finsko"
@@ -223,10 +223,25 @@ def nacti_vsechna_data():
         
         elif klic.startswith("vysledky_"):
             z_id = klic.replace("vysledky_", "")
-            try:
-                vysledky[z_id] = {"d": int(row.get("Hodnota1", 0)), "h": int(row.get("Hodnota2", 0)), "pp_sn": bool(int(row.get("Hodnota3", 0)))}
-            except:
-                pass
+            
+            # ✨ OPRAVA: Pokud jde o naše speciální celoturnajové výsledky, načteme je jako text
+            if z_id.startswith("MS_REAL_"):
+                vysledky[z_id] = {
+                    "d": 0, 
+                    "h": 0, 
+                    "pp_sn": False, 
+                    "hodnota": str(row.get("Hodnota1", "")).strip()
+                }
+            else:
+                # Pro běžné zápasy zachováme původní číselné načítání
+                try:
+                    vysledky[z_id] = {
+                        "d": int(row.get("Hodnota1", 0)), 
+                        "h": int(row.get("Hodnota2", 0)), 
+                        "pp_sn": bool(int(row.get("Hodnota3", 0)))
+                    }
+                except:
+                    pass
             
         elif klic.startswith("tip_") and "_z_" in klic:
             casti = klic.split("_")
@@ -480,7 +495,6 @@ for hrac in HRACI:
                 statistiky_hracu[hrac]["body"] += b
                 if p: statistiky_hracu[hrac]["presne"] += 1
 
-# --- ✨ NOVINKA: PŘIČTENÍ BODŮ ZA CELOTURNAJOVÉ TIPY ---
 # --- ✨ NOVINKA: PŘIČTENÍ BODŮ ZA CELOTURNAJOVÉ TIPY ---
 # Načítáme z nového neprůstřelného umístění ve "vysledky"
 real_mistr = data.get("vysledky", {}).get("MS_REAL_MISTR", {}).get("hodnota", "").strip().lower()

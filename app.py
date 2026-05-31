@@ -695,23 +695,56 @@ if volba == "Žebříček hráčů 🏒":
                     nazev_sloupce = f"{prefix} ({tymy_zkratka})"
                     radek_hrace[nazev_sloupce] = body_za_zapas
 
+    # 2. Část: Spočítá body za celoturnajové tipy z opravené databáze
                 body_celkove = 0
                 ct = data.get("celkove_tipy", {}).get(hrac, {})
-                if real_mistr and ct.get("mistr", "").strip().lower() == real_mistr: body_celkove += 20
+                
+                # Načtení čerstvých dat pro kontrolu řádku
+                t_mistr = data.get("vysledky", {}).get("MS_REAL_MISTR", {}).get("hodnota", "").strip().lower()
+                t_semi = [
+                    str(data.get("vysledky", {}).get("MS_REAL_SEMI1", {}).get("hodnota", "")).strip().lower(),
+                    str(data.get("vysledky", {}).get("MS_REAL_SEMI2", {}).get("hodnota", "")).strip().lower(),
+                    str(data.get("vysledky", {}).get("MS_REAL_SEMI3", {}).get("hodnota", "")).strip().lower(),
+                    str(data.get("vysledky", {}).get("MS_REAL_SEMI4", {}).get("hodnota", "")).strip().lower()
+                ]
+                t_cesko = data.get("vysledky", {}).get("MS_REAL_CESKO", {}).get("hodnota", "Základní skupina")
+                t_mvp = data.get("vysledky", {}).get("MS_REAL_MVP", {}).get("hodnota", "").strip().lower()
+                try:
+                    t_goly = int(data.get("vysledky", {}).get("MS_REAL_GOLY", {}).get("hodnota", 0))
+                except:
+                    t_goly = 0
+    
+                # 1. Trefa Mistra
+                if t_mistr and ct.get("mistr", "").strip().lower() == t_mistr: 
+                    body_celkove += 20
+                
+                # 2. Trefa semifinalistů
                 hrac_semi = [str(s).strip().lower() for s in ct.get("semifinale", ["", "", "", ""])]
                 for tym in hrac_semi:
-                    if tym and tym in real_semi: body_celkove += 10
-                if real_cesko and ct.get("cesko") == real_cesko: body_celkove += 20
+                    if tym and tym in t_semi: 
+                        body_celkove += 10
+                        
+                # 3. Trefa konečné fáze ČR
+                if t_cesko and ct.get("cesko") == t_cesko: 
+                    body_celkove += 20
+                    
+                # 4. Trefa MVP turnaje
                 tip_mvp = ct.get("mvp", "").strip().lower()
-                if real_mvp and tip_mvp and (real_mvp in tip_mvp or tip_mvp in real_mvp): body_celkove += 20
+                if t_mvp and tip_mvp and (t_mvp in tip_mvp or tip_mvp in t_mvp): 
+                    body_celkove += 20
+                    
+                # 5. Přesný počet gólů / tolerance
                 try:
                     tip_goly = int(ct.get("goly", 0))
                 except:
                     tip_goly = 0
-                if real_goly > 0 and tip_goly > 0:
-                    if tip_goly == real_goly: body_celkove += 20
-                    elif abs(tip_goly - real_goly) <= 3: body_celkove += 10
+                if t_goly > 0 and tip_goly > 0:
+                    if tip_goly == t_goly: 
+                        body_celkove += 20
+                    elif abs(tip_goly - t_goly) <= 3: 
+                        body_celkove += 10
                 
+                # Přidání sloupce s dlouhodobými bonusy na úplný konec řádku
                 radek_hrace["🔮 Celoturnajové body"] = body_celkove
                 prehled_bodu_data.append(radek_hrace)
 
